@@ -270,6 +270,8 @@ export const cpuRing = {
     </div>
   </div>
 
+  <div id="cr-realdata" data-realdata="cr" style="padding:0 0 4px"></div>
+
   <!-- TAB 5: Quiz -->
   <div id="cr-quiz" class="tab-panel">
     <div class="panel-title">Mini Quiz — Ring Mimarisi</div>
@@ -572,6 +574,16 @@ export const cpuRing = {
         }
       })
     }
+
+    // Gerçek veri paneli
+    const renderCrReal = () => window.renderRealDataPanel?.('cr-realdata', m => [
+      { value: m.cpu.ring3_pct + '%', label: 'Ring 3 (user) CPU' },
+      { value: m.cpu.ring0_pct + '%', label: 'Ring 0 (kernel) CPU' },
+      { value: m.cpu.idle_pct  + '%', label: 'Idle' },
+      { value: m.system.cores,        label: 'CPU çekirdek' },
+    ])
+    window['_rdFn_cr'] = renderCrReal
+    renderCrReal()
   },
 
   destroy() {

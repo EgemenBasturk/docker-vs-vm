@@ -51,6 +51,32 @@ export const paging = {
 }
 .proc-item:hover { border-color:var(--border-active); }
 .proc-dot { width:11px; height:11px; border-radius:2px; flex-shrink:0; }
+
+.pg-sim-box {
+  display:flex; align-items:center; gap:12px;
+  background:var(--bg-root); border:2px solid var(--border);
+  border-radius:10px; padding:12px 16px; font-size:.83rem;
+  transition: border-color .3s, box-shadow .3s, background .3s;
+}
+.pg-sim-box.active {
+  background:var(--bg-card-2);
+  box-shadow: 0 0 16px currentColor;
+  opacity:1;
+}
+.pg-sim-box.done { opacity:.45; }
+.pg-sim-icon { font-size:1.3rem; }
+.pg-sim-sub { font-size:.72rem; color:var(--text-muted); font-family:var(--font-mono); margin-top:2px; }
+
+.pg-sim-arrow {
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  padding:2px 0; opacity:.3; transition:opacity .3s;
+}
+.pg-sim-arrow.active { opacity:1; }
+.pg-sim-arrow-line {
+  width:2px; height:18px; background:var(--text-muted);
+  border-radius:1px;
+}
+.pg-sim-arrow-label { font-size:.7rem; color:var(--text-muted); }
 </style>
 
 <div class="module-page">
@@ -70,6 +96,7 @@ export const paging = {
     <button class="tab-btn" data-tab="pg-cevirisi">② Adres Çevirisi</button>
     <button class="tab-btn" data-tab="pg-tlb">③ TLB Hit / Miss</button>
     <button class="tab-btn" data-tab="pg-fiziksel">④ Fiziksel Bellek</button>
+    <button class="tab-btn" data-tab="pg-vmvsdocker" style="color:var(--blue-light);font-weight:700;">🐳 ⑤ VM vs Docker</button>
   </div>
 
   <!-- TAB 1: Nedir -->
@@ -189,6 +216,175 @@ export const paging = {
     </div>
   </div>
 
+  <!-- TAB 5: VM vs Docker Paging -->
+  <div id="pg-vmvsdocker" class="tab-panel">
+    <div class="panel-title">🐳 VM vs Docker — Sayfalama Simülasyonu</div>
+    <div class="panel-sub">TLB miss olduğunda her iki taraf aynı anda çalışır — farkı gör</div>
+
+    <div style="max-width:820px;margin:0 auto;">
+
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+      <button class="btn btn-blue" id="pg-sim-btn">▶ TLB Miss Simülasyonu</button>
+      <button class="btn btn-outline" id="pg-sim-reset">↺ Sıfırla</button>
+      <div style="margin-left:auto;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:6px 16px;font-family:var(--font-mono);font-size:.85rem;">
+        Döngü: <span id="pg-tick" style="color:var(--yellow-light);font-weight:700;">0</span>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
+
+      <!-- VM Tarafı -->
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;">
+        <div style="font-weight:700;color:var(--orange-light);font-size:.9rem;margin-bottom:16px;">🖥️ VM &nbsp;<span style="font-weight:400;color:var(--text-muted);font-size:.78rem;">— 2 page walk</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+
+          <div id="vm-s0" class="pg-sim-box" style="border-color:var(--purple);color:var(--purple-light);">
+            <span class="pg-sim-icon">📦</span>
+            <div><div style="font-weight:700;">Sanal Adres</div><div class="pg-sim-sub">0x7f3a4000</div></div>
+          </div>
+
+          <div class="pg-sim-arrow" id="vm-a0">
+            <div class="pg-sim-arrow-line"></div>
+            <div class="pg-sim-arrow-label">Guest Kernel PT lookup</div>
+          </div>
+
+          <div id="vm-s1" class="pg-sim-box" style="border-color:var(--blue);color:var(--blue-light);">
+            <span class="pg-sim-icon">📋</span>
+            <div><div style="font-weight:700;">Guest Fiziksel Adres</div><div class="pg-sim-sub">0x1a3b0000</div></div>
+          </div>
+
+          <div class="pg-sim-arrow" id="vm-a1" style="color:var(--red-light);">
+            <div class="pg-sim-arrow-line" style="background:var(--red-light);"></div>
+            <div class="pg-sim-arrow-label" style="color:var(--red-light);">Hypervisor EPT lookup ← ekstra!</div>
+          </div>
+
+          <div id="vm-s2" class="pg-sim-box" style="border-color:var(--green);color:var(--green-light);">
+            <span class="pg-sim-icon">🧠</span>
+            <div><div style="font-weight:700;">Fiziksel RAM</div><div class="pg-sim-sub">0x4f200000</div></div>
+          </div>
+        </div>
+
+        <div id="vm-result" class="pg-sim-result" style="display:none;margin-top:12px;background:var(--red-b);border-radius:8px;padding:10px 14px;font-size:.8rem;color:var(--red-light);">
+          ⏱ Tamamlandı — <strong>24 döngü</strong> (2 page walk)
+        </div>
+      </div>
+
+      <!-- Docker Tarafı -->
+      <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;">
+        <div style="font-weight:700;color:var(--green-light);font-size:.9rem;margin-bottom:16px;">🐳 Container &nbsp;<span style="font-weight:400;color:var(--text-muted);font-size:.78rem;">— 1 page walk</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+
+          <div id="dk-s0" class="pg-sim-box" style="border-color:var(--purple);color:var(--purple-light);">
+            <span class="pg-sim-icon">📦</span>
+            <div><div style="font-weight:700;">Sanal Adres</div><div class="pg-sim-sub">0x7f3a4000</div></div>
+          </div>
+
+          <div class="pg-sim-arrow" id="dk-a0">
+            <div class="pg-sim-arrow-line"></div>
+            <div class="pg-sim-arrow-label">Host Kernel PT lookup</div>
+          </div>
+
+          <div id="dk-s1" class="pg-sim-box" style="border-color:var(--green);color:var(--green-light);">
+            <span class="pg-sim-icon">🧠</span>
+            <div><div style="font-weight:700;">Fiziksel RAM</div><div class="pg-sim-sub">0x4f200000</div></div>
+          </div>
+
+          <div style="height:88px;display:flex;align-items:center;justify-content:center;">
+            <span style="font-size:.8rem;color:var(--text-subtle);font-style:italic;">Hypervisor katmanı yok</span>
+          </div>
+        </div>
+
+        <div id="dk-result" class="pg-sim-result" style="display:none;margin-top:12px;background:var(--green-b);border-radius:8px;padding:10px 14px;font-size:.8rem;color:var(--green-light);">
+          ⚡ Tamamlandı — <strong>12 döngü</strong> (1 page walk)
+        </div>
+      </div>
+    </div>
+
+    <!-- Bar chart comparison -->
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px 24px;">
+      <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:16px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;">Performans Karşılaştırması</div>
+
+      <!-- TLB miss -->
+      <div style="margin-bottom:18px;">
+        <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:6px;">
+          <span style="color:var(--text);">TLB Miss (döngü)</span>
+          <div style="display:flex;gap:16px;">
+            <span style="color:var(--orange-light);">🖥️ 24</span>
+            <span style="color:var(--green-light);">🐳 12</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="width:80px;font-size:.73rem;color:var(--text-muted);text-align:right;">VM</span>
+            <div style="flex:1;background:var(--bg-root);border-radius:4px;height:20px;overflow:hidden;">
+              <div style="width:100%;height:100%;background:linear-gradient(90deg,var(--orange-light),#e05c00);border-radius:4px;display:flex;align-items:center;padding-left:8px;font-size:.72rem;font-weight:700;color:#000;">24 döngü</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="width:80px;font-size:.73rem;color:var(--text-muted);text-align:right;">Container</span>
+            <div style="flex:1;background:var(--bg-root);border-radius:4px;height:20px;overflow:hidden;">
+              <div style="width:50%;height:100%;background:linear-gradient(90deg,var(--green-light),#2f855a);border-radius:4px;display:flex;align-items:center;padding-left:8px;font-size:.72rem;font-weight:700;color:#000;">12 döngü</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Page fault -->
+      <div style="margin-bottom:18px;">
+        <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:6px;">
+          <span style="color:var(--text);">Page Fault Gecikme (µs)</span>
+          <div style="display:flex;gap:16px;">
+            <span style="color:var(--orange-light);">🖥️ ~10 µs</span>
+            <span style="color:var(--green-light);">🐳 ~2 µs</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="width:80px;font-size:.73rem;color:var(--text-muted);text-align:right;">VM</span>
+            <div style="flex:1;background:var(--bg-root);border-radius:4px;height:20px;overflow:hidden;">
+              <div style="width:100%;height:100%;background:linear-gradient(90deg,var(--orange-light),#e05c00);border-radius:4px;display:flex;align-items:center;padding-left:8px;font-size:.72rem;font-weight:700;color:#000;">~10 µs (VMEXIT)</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="width:80px;font-size:.73rem;color:var(--text-muted);text-align:right;">Container</span>
+            <div style="flex:1;background:var(--bg-root);border-radius:4px;height:20px;overflow:hidden;">
+              <div style="width:20%;height:100%;background:linear-gradient(90deg,var(--green-light),#2f855a);border-radius:4px;display:flex;align-items:center;padding-left:8px;font-size:.72rem;font-weight:700;color:#000;">~2 µs</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sayfa tablosu bellek -->
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:6px;">
+          <span style="color:var(--text);">Sayfa Tablosu Belleği</span>
+          <div style="display:flex;gap:16px;">
+            <span style="color:var(--orange-light);">🖥️ 2×</span>
+            <span style="color:var(--green-light);">🐳 1×</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="width:80px;font-size:.73rem;color:var(--text-muted);text-align:right;">VM</span>
+            <div style="flex:1;background:var(--bg-root);border-radius:4px;height:20px;overflow:hidden;">
+              <div style="width:100%;height:100%;background:linear-gradient(90deg,var(--orange-light),#e05c00);border-radius:4px;display:flex;align-items:center;padding-left:8px;font-size:.72rem;font-weight:700;color:#000;">Guest PT + EPT (2×)</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="width:80px;font-size:.73rem;color:var(--text-muted);text-align:right;">Container</span>
+            <div style="flex:1;background:var(--bg-root);border-radius:4px;height:20px;overflow:hidden;">
+              <div style="width:50%;height:100%;background:linear-gradient(90deg,var(--green-light),#2f855a);border-radius:4px;display:flex;align-items:center;padding-left:8px;font-size:.72rem;font-weight:700;color:#000;">Host PT (1×)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="pg-realdata" data-realdata="pg"></div>
+
+    </div><!-- /max-width center -->
+  </div>
+
   <!-- TAB 4: Fiziksel Bellek -->
   <div id="pg-fiziksel" class="tab-panel">
     <div class="panel-title">Fiziksel Bellek Çerçeveleri</div>
@@ -226,14 +422,117 @@ export const paging = {
 
     // ── Tab switching ──
     root.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        root.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'))
-        root.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'))
-        btn.classList.add('active')
-        const panel = root.querySelector('#' + btn.dataset.tab)
-        if (panel) panel.classList.add('active')
-      })
+      btn.addEventListener('click', () => window.showTab(btn.dataset.tab, root))
     })
+
+    // ── Tab 5: VM vs Docker simulation ──
+    const simBtn   = root.querySelector('#pg-sim-btn')
+    const simReset = root.querySelector('#pg-sim-reset')
+    let simRunning = false
+
+    const resetSim = () => {
+      simRunning = false
+      root.querySelector('#pg-tick').textContent = '0'
+      ;['vm-s0','vm-s1','vm-s2','dk-s0','dk-s1'].forEach(id => {
+        const el = root.querySelector('#' + id)
+        if (el) el.classList.remove('active','done')
+      })
+      ;['vm-a0','vm-a1','dk-a0'].forEach(id => {
+        const el = root.querySelector('#' + id)
+        if (el) el.classList.remove('active')
+      })
+      ;['vm-result','dk-result'].forEach(id => {
+        const el = root.querySelector('#' + id)
+        if (el) el.style.display = 'none'
+      })
+    }
+
+    const activate = (id) => root.querySelector('#' + id)?.classList.add('active')
+    const deactivate = (id) => {
+      const el = root.querySelector('#' + id)
+      el?.classList.remove('active')
+      el?.classList.add('done')
+    }
+
+    if (simBtn) simBtn.addEventListener('click', () => {
+      if (simRunning) return
+      simRunning = true
+      resetSim()
+      simRunning = true
+
+      // tick counter: 24 ticks over 1800ms → every 75ms
+      let tick = 0
+      const tickEl = root.querySelector('#pg-tick')
+      const tickTimer = setInterval(() => {
+        tick++
+        if (tickEl) tickEl.textContent = tick
+        if (tick >= 24) clearInterval(tickTimer)
+      }, 75)
+      this._timers.push(tickTimer)
+
+      // — VM side —
+      // step 0: sanal adres (immediate)
+      activate('vm-s0')
+
+      // arrow 0 at 200ms
+      const va0 = setTimeout(() => activate('vm-a0'), 200)
+
+      // step 1 (guest PA) at 600ms — 1st page walk done (12 ticks × 75ms ≈ 900ms but we'll pace visually)
+      const vs1 = setTimeout(() => {
+        deactivate('vm-s0')
+        root.querySelector('#vm-a0')?.classList.remove('active')
+        activate('vm-s1')
+      }, 650)
+
+      // arrow 1 at 900ms (EPT — red)
+      const va1 = setTimeout(() => activate('vm-a1'), 900)
+
+      // step 2 (real PA) at 1350ms — 2nd walk done
+      const vs2 = setTimeout(() => {
+        deactivate('vm-s1')
+        root.querySelector('#vm-a1')?.classList.remove('active')
+        activate('vm-s2')
+      }, 1350)
+
+      // VM result at 1750ms
+      const vr = setTimeout(() => {
+        deactivate('vm-s2')
+        const el = root.querySelector('#vm-result')
+        if (el) el.style.display = 'block'
+        simRunning = false
+      }, 1750)
+
+      // — Docker side —
+      activate('dk-s0')
+      const da0 = setTimeout(() => activate('dk-a0'), 200)
+
+      // Docker finishes at 650ms (only 1 walk = 12 ticks)
+      const ds1 = setTimeout(() => {
+        deactivate('dk-s0')
+        root.querySelector('#dk-a0')?.classList.remove('active')
+        activate('dk-s1')
+      }, 650)
+
+      const dr = setTimeout(() => {
+        deactivate('dk-s1')
+        const el = root.querySelector('#dk-result')
+        if (el) el.style.display = 'block'
+      }, 1050)
+
+      this._timers.push(va0, vs1, va1, vs2, vr, da0, ds1, dr)
+    })
+
+    if (simReset) simReset.addEventListener('click', resetSim)
+
+    // Gerçek veri paneli
+    const renderPgReal = () => window.renderRealDataPanel?.('pg-realdata', m => [
+      { value: m.paging.pgfault_per_sec.toLocaleString(),    label: 'Minor page fault/s' },
+      { value: m.paging.pgmajfault_per_sec.toLocaleString(), label: 'Major fault/s (disk)' },
+      { value: m.paging.pgfault_total.toLocaleString(),      label: 'Toplam page fault' },
+      { value: m.system.kernel.replace('Linux version ',''), label: 'Kernel' },
+    ])
+    window['_rdFn_pg'] = renderPgReal
+    renderPgReal()
 
     // ── Tab 2: Adres çevirisi ──
     const PAGE_TABLE = [5,12,3,9,1,14,7,2,11,4,13,6,15,0,8,10]

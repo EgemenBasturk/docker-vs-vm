@@ -256,6 +256,8 @@ export const contextSwitch = {
     </div>
   </div>
 
+  <div id="cs-realdata" data-realdata="cs" style="padding:0 0 4px"></div>
+
   <!-- TAB 4: Round Robin -->
   <div id="cs-scheduler" class="tab-panel">
     <div class="panel-title">Round Robin Scheduler</div>
@@ -606,6 +608,16 @@ export const contextSwitch = {
         if (se) se.innerHTML = ''
       })
     }
+
+    // Gerçek veri paneli
+    const renderCsReal = () => window.renderRealDataPanel?.('cs-realdata', m => [
+      { value: m.context_switch.ctxt_per_sec.toLocaleString(), label: 'Context switch/s' },
+      { value: m.context_switch.processes_per_sec,             label: 'Yeni process/s' },
+      { value: m.context_switch.running,                       label: 'Çalışan process' },
+      { value: m.context_switch.blocked,                       label: 'Bloklu process' },
+    ])
+    window['_rdFn_cs'] = renderCsReal
+    renderCsReal()
   },
 
   destroy() {

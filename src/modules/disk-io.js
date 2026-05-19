@@ -395,6 +395,7 @@ export const diskIo = {
         </table>
       </div>
     </div>
+    <div id="dio-realdata" data-realdata="dio"></div>
   </div>
 </div>
 `
@@ -415,6 +416,16 @@ export const diskIo = {
     this._initOverlay(root)
     this._initDma(root)
     this._initCompare(root)
+
+    // Gerçek veri paneli
+    const renderDioReal = () => window.renderRealDataPanel?.('dio-realdata', m => [
+      { value: m.disk.reads_per_sec,    label: `Okuma/s (${m.disk.device})` },
+      { value: m.disk.writes_per_sec,   label: 'Yazma/s' },
+      { value: m.disk.read_kb_per_sec + ' KB', label: 'Okuma bant genişliği' },
+      { value: m.disk.write_kb_per_sec + ' KB', label: 'Yazma bant genişliği' },
+    ])
+    window['_rdFn_dio'] = renderDioReal
+    renderDioReal()
   },
 
   _initKatman(root) {

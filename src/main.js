@@ -1,3 +1,5 @@
+import { getMetrics, isLive, onUpdate } from './realdata.js'
+import { liveDashboard }  from './modules/live-dashboard.js'
 import { dockerVm }       from './modules/docker-vm.js'
 import { paging }         from './modules/paging.js'
 import { contextSwitch }  from './modules/context-switch.js'
@@ -6,6 +8,7 @@ import { diskIo }         from './modules/disk-io.js'
 
 // ── Module registry ──────────────────────────────
 const MODULES = {
+  'live-dashboard': liveDashboard,
   'docker-vm':      dockerVm,
   'paging':         paging,
   'context-switch': contextSwitch,
@@ -15,6 +18,7 @@ const MODULES = {
 
 const NAV_ITEMS = [
   { id: 'home',           icon: '🏠', label: 'Ana Sayfa' },
+  { id: 'live-dashboard', icon: '📊', label: 'Canlı Veriler' },
   { id: 'docker-vm',      icon: '🐳', label: 'Docker vs VM' },
   { id: 'paging',         icon: '📄', label: 'Paging' },
   { id: 'context-switch', icon: '🔄', label: 'Context Switch' },
@@ -35,6 +39,7 @@ function navigate(page) {
 
   if (page === 'home') {
     renderHome()
+    updateFloatingNav()
     return
   }
 
@@ -45,6 +50,7 @@ function navigate(page) {
   app.innerHTML = mod.template()
   currentModule = mod
   if (mod.init) mod.init(app)
+  updateFloatingNav()
 }
 
 function updateNav(page) {
@@ -52,6 +58,49 @@ function updateNav(page) {
     btn.classList.toggle('active', btn.dataset.page === page)
   })
 }
+
+// ── Floating tab prev/next ────────────────────────
+function getTabIds() {
+  const app = document.getElementById('app')
+  return Array.from(app.querySelectorAll('.tab-btn')).map(b => b.dataset.tab)
+}
+
+function activeTabId() {
+  const app = document.getElementById('app')
+  const active = app.querySelector('.tab-btn.active')
+  return active ? active.dataset.tab : null
+}
+
+function updateFloatingNav() {
+  const prev = document.getElementById('tab-nav-prev')
+  const next = document.getElementById('tab-nav-next')
+  const tabs = getTabIds()
+
+  if (currentPage === 'home' || tabs.length === 0) {
+    prev.style.display = 'none'
+    next.style.display = 'none'
+    return
+  }
+
+  prev.style.display = 'flex'
+  next.style.display = 'flex'
+
+  const idx = tabs.indexOf(activeTabId())
+  prev.classList.toggle('disabled', idx <= 0)
+  next.classList.toggle('disabled', idx >= tabs.length - 1)
+}
+
+document.getElementById('tab-nav-prev').addEventListener('click', () => {
+  const tabs = getTabIds()
+  const idx  = tabs.indexOf(activeTabId())
+  if (idx > 0) { window.showTab(tabs[idx - 1]); updateFloatingNav() }
+})
+
+document.getElementById('tab-nav-next').addEventListener('click', () => {
+  const tabs = getTabIds()
+  const idx  = tabs.indexOf(activeTabId())
+  if (idx < tabs.length - 1) { window.showTab(tabs[idx + 1]); updateFloatingNav() }
+})
 
 // ── Home page ─────────────────────────────────────
 function renderHome() {
@@ -75,11 +124,11 @@ function renderHome() {
       icon: '📄',
       color: 'green',
       title: 'Sayfalama (Paging)',
-      desc: 'Sanal adresten fiziksel adrese çeviri, sayfa tablosu bit simülasyonu, TLB hit/miss ve fiziksel bellek çerçeveleri.',
+      desc: 'Sanal adresten fiziksel adrese çeviri, TLB simülasyonu. Artı: VM\'de çift katmanlı EPT/NPT vs Container\'da tek sayfa tablosu karşılaştırması.',
       tags: [
         { bg: 'var(--green-b)',  color: 'var(--green-light)',  text: 'Adres Çevirisi' },
         { bg: 'var(--blue-b)',   color: 'var(--blue-light)',   text: 'TLB Simülasyonu' },
-        { bg: 'var(--yellow-b)', color: 'var(--yellow-light)', text: 'Bellek Haritası' },
+        { bg: 'var(--purple-b)', color: 'var(--purple-light)', text: '🐳 VM vs Docker' },
       ]
     },
     {
@@ -87,10 +136,10 @@ function renderHome() {
       icon: '🔄',
       color: 'yellow',
       title: 'Context Switch',
-      desc: 'CPU register kaydetme/yükleme, PCB, VM\'de vs Container\'da geçiş maliyeti karşılaştırması ve Round Robin Scheduler.',
+      desc: 'CPU register kaydetme/yükleme, PCB. VM\'de VMEXIT maliyeti vs Container\'da namespace geçişi karşılaştırması ve Round Robin Scheduler.',
       tags: [
         { bg: 'var(--red-b)',    color: 'var(--red-light)',    text: 'Adım Adım' },
-        { bg: 'var(--purple-b)', color: 'var(--purple-light)', text: 'VM vs Docker' },
+        { bg: 'var(--purple-b)', color: 'var(--purple-light)', text: '🐳 VM vs Docker' },
         { bg: 'var(--blue-b)',   color: 'var(--blue-light)',   text: 'Round Robin' },
       ]
     },
@@ -124,12 +173,13 @@ function renderHome() {
     <div class="home-page fade-in">
       <div class="home-hero">
         <div class="hero-badge">Bilgisayar Organizasyonu Dersi</div>
-        <h1>🖥️ Donanım Simülasyonları</h1>
-        <p>Donanım düzeyinde interaktif simülasyonlarla işletim sistemi ve sistem yazılımı kavramlarını keşfet.</p>
+        <h1>🐳 Docker vs VM</h1>
+        <p>Sanallaştırma teknolojileri derinlemesine: Paging, Context Switch, CPU Ring, Disk I/O konularını Docker ve VM perspektifinden interaktif simülasyonlarla keşfet.</p>
         <div class="home-stats">
+          <div class="stat-pill">🐳 Docker</div>
+          <div class="stat-pill">🖥️ VM / KVM</div>
           <div class="stat-pill"><strong>5</strong> Modül</div>
-          <div class="stat-pill"><strong>20+</strong> İnteraktif Simülasyon</div>
-          <div class="stat-pill"><strong>5</strong> Quiz Sorusu</div>
+          <div class="stat-pill"><strong>20+</strong> Simülasyon</div>
           <div class="stat-pill">🇹🇷 Türkçe</div>
         </div>
       </div>
@@ -165,6 +215,7 @@ window.showTab = function(tabId, container) {
   const btn   = root.querySelector(`[data-tab="${tabId}"]`)
   if (panel) panel.classList.add('active')
   if (btn)   btn.classList.add('active')
+  updateFloatingNav()
 }
 
 // ── Build nav ─────────────────────────────────────
@@ -172,8 +223,8 @@ function buildNav() {
   const nav = document.getElementById('top-nav')
   nav.innerHTML = `
     <div class="nav-brand" id="nav-brand">
-      <span class="brand-icon">🖥️</span>
-      <span class="brand-text">Bilgisayar Org.</span>
+      <span class="brand-icon">🐳</span>
+      <span class="brand-text">Docker vs VM</span>
     </div>
     <div class="nav-tabs">
       ${NAV_ITEMS.map(item => `
@@ -191,6 +242,40 @@ function buildNav() {
 
   nav.querySelector('#nav-brand').addEventListener('click', () => navigate('home'))
 }
+
+// ── Real-data panel helper (used by modules) ──────
+window.renderRealDataPanel = function(containerId, cells) {
+  const m = getMetrics()
+  const container = document.getElementById(containerId)
+  if (!container) return
+
+  const badge = isLive()
+    ? `<span class="realdata-badge live">● CANLI</span>`
+    : `<span class="realdata-badge snap">📷 SNAPSHOT — ${new Date(m.collected_at).toLocaleDateString('tr')}</span>`
+
+  container.innerHTML = `
+    <div class="realdata-panel">
+      <div class="realdata-header">
+        <span>📊 Gerçek Sistem Ölçümü &nbsp;·&nbsp; ${m.system.hostname} &nbsp;·&nbsp; ${m.system.cores} çekirdek</span>
+        ${badge}
+      </div>
+      <div class="realdata-grid">
+        ${cells(m).map(c => `
+          <div class="realdata-cell">
+            <div class="realdata-value">${c.value}</div>
+            <div class="realdata-label">${c.label}</div>
+          </div>`).join('')}
+      </div>
+    </div>`
+}
+
+// Re-render real-data panels when live data arrives
+onUpdate(() => {
+  document.querySelectorAll('[data-realdata]').forEach(el => {
+    const fn = window['_rdFn_' + el.dataset.realdata]
+    if (fn) fn()
+  })
+})
 
 // ── Bootstrap ─────────────────────────────────────
 buildNav()

@@ -1,0 +1,36 @@
+{
+  "_note": "collect.js ile üretildi — bunu silme, scripts/collect.js yeniden çalışınca güncellenir",
+  "collected_at": "2026-05-19T10:00:00Z",
+  "system": {
+    "hostname": "linux-host",
+    "kernel": "Linux 6.8.0-45-generic",
+    "cores": 8
+  },
+  "paging": {
+    "pgfault_per_sec": 3241,
+    "pgmajfault_per_sec": 1,
+    "pgfault_total": 18473920,
+    "pgmajfault_total": 847,
+    "note": "1 major fault/s — neredeyse tüm sayfalar önbellekte"
+  },
+  "context_switch": {
+    "ctxt_per_sec": 14872,
+    "processes_per_sec": 12,
+    "running": 3,
+    "blocked": 1
+  },
+  "cpu": {
+    "user_pct": 11.4,
+    "sys_pct": 4.2,
+    "idle_pct": 84.4,
+    "ring3_pct": 11.4,
+    "ring0_pct": 4.2
+  },
+  "disk": {
+    "device": "nvme0n1",
+    "reads_per_sec": 48,
+    "writes_per_sec": 23,
+    "read_kb_per_sec": 192,
+    "write_kb_per_sec": 94
+  }
+}
