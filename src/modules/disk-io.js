@@ -17,13 +17,13 @@ export const diskIo = {
   .dma-progress { height:6px; background:var(--bg-root); border-radius:3px; margin-top:8px; overflow:hidden; }
   .dma-bar { height:100%; width:0%; border-radius:3px; transition:width .4s; }
 
-  .overlay-stack { display:flex; flex-direction:column; gap:6px; max-width:380px; margin:0 auto; }
+  .overlay-stack { display:flex; flex-direction:column; gap:6px; }
   .overlay-layer { padding:14px 18px; border-radius:10px; cursor:pointer; border:2px solid transparent; transition:all .2s; font-size:.85rem; font-weight:600; }
   .overlay-layer:hover { transform:translateX(4px); }
   .overlay-layer.selected { border-color: currentColor; transform:translateX(6px); }
   .overlay-layer-detail { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:18px; margin-top:12px; font-size:.85rem; line-height:1.7; }
 
-  .cow-scene { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:16px 0; }
+  .cow-scene { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:12px 0; }
   .cow-box { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:16px; }
   .cow-file { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:8px; margin:6px 0; font-size:.82rem; font-weight:600; transition:all .3s; cursor:default; }
 
@@ -43,83 +43,91 @@ export const diskIo = {
   .mode-btns { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
   .mode-btn { padding:8px 18px; border-radius:8px; border:none; cursor:pointer; font-size:.82rem; font-weight:600; transition:all .2s; }
   .mode-btn.active { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,.3); }
+
+  .insight-box { display:flex; align-items:flex-start; gap:12px; background:var(--blue-b); border:1px solid var(--blue); border-radius:12px; padding:14px 18px; margin-bottom:20px; font-size:.85rem; line-height:1.65; color:var(--text); }
+  .insight-box .insight-icon { font-size:1.4rem; flex-shrink:0; margin-top:1px; }
+  .insight-box strong { color:var(--blue-light); }
+
+  .section-divider { border:none; border-top:1px solid var(--border); margin:28px 0 20px; }
+  .section-label { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); margin-bottom:12px; }
 </style>
 
 <div class="module-page">
   <div class="module-header">
     <div class="module-badge">Modül 5</div>
     <h2>💾 Disk I/O & DMA</h2>
-    <p>I/O katman yolculuğu, OverlayFS ve Copy-on-Write simülasyonu, DMA transferi ve VM vs Container karşılaştırması.</p>
+    <p>Disk okuma/yazma nasıl çalışır? Docker neden VM'den daha hızlıdır?</p>
   </div>
 
   <div class="module-tabs">
-    <button class="tab-btn active" data-tab="tab-nedir">① Disk I/O Nedir?</button>
-    <button class="tab-btn" data-tab="tab-katman">② Katman Yolculuğu</button>
-    <button class="tab-btn" data-tab="tab-overlay">③ Overlay Filesystem</button>
-    <button class="tab-btn" data-tab="tab-dma">④ DMA Simülasyonu</button>
-    <button class="tab-btn" data-tab="tab-compare">⑤ VM vs Container I/O</button>
+    <button class="tab-btn active" data-tab="tab-nedir">① Temel Kavramlar</button>
+    <button class="tab-btn" data-tab="tab-compare">② VM vs Docker I/O</button>
+    <button class="tab-btn" data-tab="tab-overlay">③ Docker Katmanları</button>
+    <button class="tab-btn" data-tab="tab-dma">④ DMA Transferi</button>
   </div>
 
-  <!-- ① Disk I/O Nedir? -->
+  <!-- ① Temel Kavramlar -->
   <div class="tab-panel active" id="tab-nedir">
+    <div class="insight-box">
+      <div class="insight-icon">💡</div>
+      <div><strong>Ana Fikir:</strong> Disk, RAM'den çok daha yavaştır. İşletim sistemi bu yavaşlığı gizlemek için önbellek ve akıllı zamanlama kullanır. Her dosya erişimi birden fazla yazılım katmanından geçer.</div>
+    </div>
+
     <div class="concept-grid">
       <div class="concept-card border-blue">
         <div class="concept-icon">💾</div>
         <div class="concept-title">Disk I/O Nedir?</div>
-        <div class="concept-body">Disk I/O (Input/Output), işlemcinin depolama aygıtlarıyla (HDD, SSD, NVMe) veri okuma/yazma işlemlerinin bütünüdür. RAM'den yüzlerce kat yavaştır.</div>
+        <div class="concept-body">Uygulamanın diskten veri okuma veya diske yazma işlemidir. RAM'e erişmekten <strong>1.000–100.000 kat yavaştır</strong> — bu yüzden kernel işlemleri önbelleğe alır.</div>
       </div>
       <div class="concept-card border-green">
         <div class="concept-icon">📚</div>
-        <div class="concept-title">Buffer Cache</div>
-        <div class="concept-body">Kernel, sık erişilen disk bloklarını RAM'de önbelleğe alır. Aynı dosyaya ikinci erişimde disk okuma yapmaz, RAM'den döner. Page Cache de denir.</div>
-      </div>
-      <div class="concept-card border-yellow">
-        <div class="concept-icon">🔄</div>
-        <div class="concept-title">Blok Aygıtları</div>
-        <div class="concept-body">Diskler "blok aygıtları"dır — veriyi sabit boyutlu bloklarda (512B – 4KB) okur/yazar. Karakter aygıtları (fare, terminal) ise byte-byte çalışır.</div>
+        <div class="concept-title">Buffer Cache (Önbellek)</div>
+        <div class="concept-body">Kernel, sık kullanılan dosyaları RAM'de saklar. Aynı dosyaya ikinci kez erişince diske gitmez — RAM'den verir. Bu yüzden bilgisayar ısındıkça hızlanır.</div>
       </div>
       <div class="concept-card border-purple">
-        <div class="concept-icon">⚡</div>
-        <div class="concept-title">I/O Scheduler</div>
-        <div class="concept-body">Linux çekirdeği CFQ, Deadline veya NONE schedulerlarıyla disk isteklerini sıralar. SSD'lerde NONE (passthrough), HDD'lerde Deadline tercih edilir.</div>
-      </div>
-      <div class="concept-card border-red">
-        <div class="concept-icon">🚦</div>
-        <div class="concept-title">Blocking vs Non-Blocking</div>
-        <div class="concept-body">Klasik read() sistem çağrısı senkrondur — disk yanıtlayana kadar proses bekler (blocked). O_NONBLOCK veya io_uring ile asenkron I/O mümkündür.</div>
-      </div>
-      <div class="concept-card border-orange">
         <div class="concept-icon">🗂️</div>
-        <div class="concept-title">VFS Katmanı</div>
-        <div class="concept-body">Virtual File System, uygulamalar ile gerçek dosya sistemleri (ext4, btrfs, overlay) arasında soyutlama katmanıdır. open/read/write hepsi VFS'e gider.</div>
+        <div class="concept-title">VFS — Sanal Dosya Sistemi</div>
+        <div class="concept-body">Uygulamalar <code>read()</code> yazar, diskin ext4 mi, btrfs mi, NFS mi olduğunu bilmez. VFS (Virtual File System) bu ayrıntıyı gizleyen soyutlama katmanıdır.</div>
+      </div>
+      <div class="concept-card border-yellow">
+        <div class="concept-icon">🚦</div>
+        <div class="concept-title">Beklemeli vs Beklememeli I/O</div>
+        <div class="concept-body">Normal <code>read()</code> disk yanıtlayana kadar programı <strong>durdurur</strong>. Asenkron I/O (io_uring) ile program disk beklerken başka işler yapabilir.</div>
       </div>
     </div>
 
     <div class="panel-box" style="margin-top:20px;">
-      <h3 style="margin:0 0 14px;font-size:1rem;color:var(--text-bright)">📖 Analoji: Kütüphane Sistemi</h3>
+      <h3 style="margin:0 0 14px;font-size:1rem;color:var(--text-bright)">📖 Kütüphane Analojisi</h3>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-        <div style="background:var(--bg-root);border-radius:10px;padding:14px;font-size:.83rem;line-height:1.7;">
-          <div style="color:var(--blue-light);font-weight:700;margin-bottom:8px;">💡 Gerçek Kütüphane</div>
-          <div>📚 <strong>Kitap rafları</strong> → Disk (kalıcı, yavaş)</div>
+        <div style="background:var(--bg-root);border-radius:10px;padding:14px;font-size:.83rem;line-height:1.9;">
+          <div style="color:var(--blue-light);font-weight:700;margin-bottom:8px;">📚 Kütüphane = Bilgisayar</div>
+          <div>🗄️ <strong>Kitap rafları</strong> → Disk (kalıcı, yavaş)</div>
           <div>🗃️ <strong>Masa</strong> → RAM (hızlı, geçici)</div>
-          <div>📋 <strong>Kütüphaneci</strong> → I/O Scheduler</div>
-          <div>📝 <strong>Ödünç defteri</strong> → File Descriptor</div>
-          <div>🔖 <strong>Fotokopi</strong> → Copy-on-Write</div>
+          <div>📋 <strong>Kütüphaneci</strong> → I/O Scheduler (sırayı düzenler)</div>
+          <div>📝 <strong>Ödünç defteri</strong> → File Descriptor (açık dosya kaydı)</div>
+          <div>🔖 <strong>Fotokopi</strong> → Copy-on-Write (değişince kopyala)</div>
         </div>
-        <div style="background:var(--bg-root);border-radius:10px;padding:14px;font-size:.83rem;line-height:1.7;">
+        <div style="background:var(--bg-root);border-radius:10px;padding:14px;font-size:.83rem;line-height:1.9;">
           <div style="color:var(--green-light);font-weight:700;margin-bottom:8px;">⚡ Hız Karşılaştırması</div>
-          <div>L1 Cache: <strong style="color:var(--green-light)">~1 ns</strong></div>
-          <div>RAM: <strong style="color:var(--blue-light)">~100 ns</strong></div>
-          <div>SSD: <strong style="color:var(--yellow-light)">~100 µs</strong></div>
-          <div>HDD: <strong style="color:var(--orange-light)">~10 ms</strong></div>
-          <div>Network: <strong style="color:var(--red-light)">~150 ms</strong></div>
+          <div>L1 Önbellek: <strong style="color:var(--green-light)">~1 ns</strong> (ışık hızı)</div>
+          <div>RAM: <strong style="color:var(--blue-light)">~100 ns</strong> (100x yavaş)</div>
+          <div>SSD: <strong style="color:var(--yellow-light)">~100 µs</strong> (100.000x yavaş)</div>
+          <div>HDD: <strong style="color:var(--orange-light)">~10 ms</strong> (10.000.000x yavaş)</div>
+          <div>Ağ: <strong style="color:var(--red-light)">~150 ms</strong> (uzak sunucu)</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ② Katman Yolculuğu -->
-  <div class="tab-panel" id="tab-katman">
+  <!-- ② VM vs Docker I/O  (tab-katman içeriği de burada) -->
+  <div class="tab-panel" id="tab-compare">
+    <div class="insight-box">
+      <div class="insight-icon">💡</div>
+      <div><strong>Ana Fikir:</strong> VM'de bir dosya okumak <strong>7 yazılım katmanından</strong> geçer çünkü VM'nin kendi işletim sistemi var. Docker ise <strong>5 katman</strong> kullanır — araya giren sanal işletim sistemi yok. Bu fark, disk okumayı 3-4 kat hızlandırır.</div>
+    </div>
+
+    <!-- Katman yolculuğu animasyonu -->
+    <div class="section-label">Katman Yolculuğu Animasyonu</div>
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
       <button class="btn btn-blue" id="btn-start-journey">▶ Animasyonu Başlat</button>
       <button class="btn btn-outline" id="btn-reset-journey">↺ Sıfırla</button>
@@ -128,128 +136,250 @@ export const diskIo = {
     <div class="layer-journey">
       <div class="journey-col">
         <div style="text-align:center;margin-bottom:12px;">
-          <span style="font-size:1.1rem;font-weight:700;color:var(--blue-light)">🖥️ VM'de read() Yolculuğu</span>
-          <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px;">7 katman geçer</div>
+          <span style="font-size:1rem;font-weight:700;color:var(--orange-light)">🖥️ VM — 7 Adım</span>
+          <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px;">~150–400 µs gecikme</div>
         </div>
         <div class="journey-step" data-journey="vm" style="border-left-color:var(--purple-light)">
           <div class="journey-dot" style="background:var(--purple-light)"></div>
-          <div><strong>User Space</strong><br><span style="color:var(--text-muted);font-size:.78rem">read(fd, buf, size) çağrısı</span></div>
+          <div><strong>Uygulama</strong> — <code>read()</code> çağırır<br><span style="color:var(--text-muted);font-size:.78rem">User Space → Kernel geçişi başlıyor</span></div>
         </div>
         <div class="journey-step" data-journey="vm" style="border-left-color:var(--blue-light)">
           <div class="journey-dot" style="background:var(--blue-light)"></div>
-          <div><strong>glibc / syscall</strong><br><span style="color:var(--text-muted);font-size:.78rem">Ring 3 → Ring 0 geçişi</span></div>
+          <div><strong>Sistem Çağrısı (syscall)</strong><br><span style="color:var(--text-muted);font-size:.78rem">VM'nin kendi kernel'ına giriyor</span></div>
         </div>
         <div class="journey-step" data-journey="vm" style="border-left-color:var(--green-light)">
           <div class="journey-dot" style="background:var(--green-light)"></div>
-          <div><strong>Guest Kernel VFS</strong><br><span style="color:var(--text-muted);font-size:.78rem">vfs_read() → dosya sistemi</span></div>
+          <div><strong>VM Dosya Sistemi Katmanı</strong><br><span style="color:var(--text-muted);font-size:.78rem">VM içindeki sanal disk sürücüsü</span></div>
         </div>
         <div class="journey-step" data-journey="vm" style="border-left-color:var(--yellow-light)">
           <div class="journey-dot" style="background:var(--yellow-light)"></div>
-          <div><strong>Guest Block Layer</strong><br><span style="color:var(--text-muted);font-size:.78rem">virtio-blk sürücüsü</span></div>
-        </div>
-        <div class="journey-step" data-journey="vm" style="border-left-color:var(--orange-light)">
-          <div class="journey-dot" style="background:var(--orange-light)"></div>
-          <div><strong>VMEXIT → Hypervisor</strong><br><span style="color:var(--text-muted);font-size:.78rem">KVM/QEMU kontrolü alır</span></div>
+          <div><strong>VM Disk Sürücüsü</strong><br><span style="color:var(--text-muted);font-size:.78rem">Sanal disk kartına istek gönderir</span></div>
         </div>
         <div class="journey-step" data-journey="vm" style="border-left-color:var(--red-light)">
           <div class="journey-dot" style="background:var(--red-light)"></div>
-          <div><strong>Host Kernel VFS</strong><br><span style="color:var(--text-muted);font-size:.78rem">Host dosya sistemine iner</span></div>
+          <div><strong>⚠️ VMEXIT — Hypervisor Devralır</strong><br><span style="color:var(--red-light);font-size:.78rem">VM durur, yönetici (VMware/KVM) kontrolü alır — en maliyetli adım</span></div>
+        </div>
+        <div class="journey-step" data-journey="vm" style="border-left-color:var(--orange-light)">
+          <div class="journey-dot" style="background:var(--orange-light)"></div>
+          <div><strong>Ana Makine Dosya Sistemi</strong><br><span style="color:var(--text-muted);font-size:.78rem">Gerçek işletim sistemine ulaşıldı</span></div>
         </div>
         <div class="journey-step" data-journey="vm" style="border-left-color:var(--purple-light)">
           <div class="journey-dot" style="background:var(--purple-light)"></div>
-          <div><strong>Fiziksel Disk</strong><br><span style="color:var(--text-muted);font-size:.78rem">Gerçek okuma / DMA</span></div>
+          <div><strong>Fiziksel Disk</strong><br><span style="color:var(--text-muted);font-size:.78rem">Veri okundu, geri dönüş başlıyor</span></div>
         </div>
       </div>
 
       <div class="journey-col">
         <div style="text-align:center;margin-bottom:12px;">
-          <span style="font-size:1.1rem;font-weight:700;color:var(--green-light)">🐳 Container'da read() Yolculuğu</span>
-          <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px;">5 katman geçer</div>
+          <span style="font-size:1rem;font-weight:700;color:var(--green-light)">🐳 Docker — 5 Adım</span>
+          <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px;">~50–100 µs gecikme</div>
         </div>
         <div class="journey-step" data-journey="docker" style="border-left-color:var(--purple-light)">
           <div class="journey-dot" style="background:var(--purple-light)"></div>
-          <div><strong>User Space</strong><br><span style="color:var(--text-muted);font-size:.78rem">read(fd, buf, size) çağrısı</span></div>
+          <div><strong>Uygulama</strong> — <code>read()</code> çağırır<br><span style="color:var(--text-muted);font-size:.78rem">Aynı sistem çağrısı</span></div>
         </div>
         <div class="journey-step" data-journey="docker" style="border-left-color:var(--blue-light)">
           <div class="journey-dot" style="background:var(--blue-light)"></div>
-          <div><strong>glibc / syscall</strong><br><span style="color:var(--text-muted);font-size:.78rem">Ring 3 → Ring 0 (host kernel)</span></div>
+          <div><strong>Sistem Çağrısı (syscall)</strong><br><span style="color:var(--text-muted);font-size:.78rem">Doğrudan ana makinenin kernel'ı</span></div>
         </div>
         <div class="journey-step" data-journey="docker" style="border-left-color:var(--green-light)">
           <div class="journey-dot" style="background:var(--green-light)"></div>
-          <div><strong>Host Kernel VFS</strong><br><span style="color:var(--text-muted);font-size:.78rem">OverlayFS → ext4</span></div>
+          <div><strong>OverlayFS Dosya Sistemi</strong><br><span style="color:var(--text-muted);font-size:.78rem">Docker'ın katmanlı dosya sistemi</span></div>
         </div>
         <div class="journey-step" data-journey="docker" style="border-left-color:var(--yellow-light)">
           <div class="journey-dot" style="background:var(--yellow-light)"></div>
-          <div><strong>Block Layer</strong><br><span style="color:var(--text-muted);font-size:.78rem">NVMe / SCSI sürücüsü</span></div>
+          <div><strong>Disk Sürücüsü</strong><br><span style="color:var(--text-muted);font-size:.78rem">NVMe / SSD sürücüsü</span></div>
         </div>
         <div class="journey-step" data-journey="docker" style="border-left-color:var(--orange-light)">
           <div class="journey-dot" style="background:var(--orange-light)"></div>
-          <div><strong>Fiziksel Disk</strong><br><span style="color:var(--text-muted);font-size:.78rem">Gerçek okuma / DMA</span></div>
+          <div><strong>Fiziksel Disk</strong><br><span style="color:var(--text-muted);font-size:.78rem">Veri okundu</span></div>
         </div>
-        <div style="margin-top:16px;padding:14px;background:var(--green-b);border-radius:10px;font-size:.82rem;color:var(--green-light);">
-          ✅ <strong>2 katman daha az</strong> — VMEXIT ve Guest Block Layer yok. Container doğrudan host kernel üzerinde çalışır.
+        <div style="margin-top:16px;padding:14px;background:var(--green-b);border-radius:10px;font-size:.82rem;color:var(--green-light);line-height:1.7;">
+          ✅ <strong>VMEXIT yok</strong> — VM gibi durup beklemek zorunda değil<br>
+          ✅ <strong>VM kernel'ı yok</strong> — doğrudan ana makine kernel'ına gider<br>
+          ✅ Sonuç: <strong>3–4x daha hızlı disk erişimi</strong>
         </div>
       </div>
     </div>
+
+    <hr class="section-divider">
+
+    <!-- Adım adım I/O karşılaştırması -->
+    <div class="section-label">Adım Adım Detaylı Görünüm</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+      <button class="btn btn-blue" id="btn-io-anim">▶ Adım Adım Göster</button>
+      <button class="btn btn-outline" id="btn-io-reset">↺ Sıfırla</button>
+    </div>
+
+    <div class="io-compare">
+      <div class="io-col">
+        <div style="text-align:center;margin-bottom:14px;">
+          <span style="font-size:1rem;font-weight:700;color:var(--orange-light)">🖥️ VM — 7 Adım</span>
+        </div>
+        <div class="io-step" data-iostep="vm" style="background:var(--purple-b);">
+          <div class="io-step-num" style="background:var(--purple-light);color:#000;">1</div>
+          <div><strong>Uygulama read() çağırır</strong><br><span style="font-size:.75rem;color:var(--text-muted);">program diske erişmek ister</span></div>
+        </div>
+        <div class="io-step" data-iostep="vm" style="background:var(--blue-b);">
+          <div class="io-step-num" style="background:var(--blue-light);color:#000;">2</div>
+          <div><strong>VM Kernel Dosya Sistemi</strong><br><span style="font-size:.75rem;color:var(--text-muted);">VM'nin kendi kernel'ı isteği işler</span></div>
+        </div>
+        <div class="io-step" data-iostep="vm" style="background:var(--red-b);">
+          <div class="io-step-num" style="background:var(--red-light);color:#000;">3</div>
+          <div><strong>⚠️ VMEXIT — VM Duruyor</strong><br><span style="font-size:.75rem;color:var(--red-light);">hypervisor kontrolü alır, ~5–10 µs bekler</span></div>
+        </div>
+        <div class="io-step" data-iostep="vm" style="background:var(--yellow-b);">
+          <div class="io-step-num" style="background:var(--yellow-light);color:#000;">4</div>
+          <div><strong>Hypervisor Disk Taklidi Yapar</strong><br><span style="font-size:.75rem;color:var(--text-muted);">VMware/KVM gerçek diski simüle eder</span></div>
+        </div>
+        <div class="io-step" data-iostep="vm" style="background:var(--green-b);">
+          <div class="io-step-num" style="background:var(--green-light);color:#000;">5</div>
+          <div><strong>Ana Makine Dosya Sistemi</strong><br><span style="font-size:.75rem;color:var(--text-muted);">gerçek işletim sistemine ulaşıldı</span></div>
+        </div>
+        <div class="io-step" data-iostep="vm" style="background:var(--blue-b);">
+          <div class="io-step-num" style="background:var(--blue-light);color:#000;">6</div>
+          <div><strong>Disk Sürücüsü</strong><br><span style="font-size:.75rem;color:var(--text-muted);">NVMe/SSD sürücüsü</span></div>
+        </div>
+        <div class="io-step" data-iostep="vm" style="background:var(--purple-b);">
+          <div class="io-step-num" style="background:var(--purple-light);color:#000;">7</div>
+          <div><strong>Fiziksel Disk</strong><br><span style="font-size:.75rem;color:var(--text-muted);">veri okundu, geri dön</span></div>
+        </div>
+      </div>
+
+      <div class="io-col">
+        <div style="text-align:center;margin-bottom:14px;">
+          <span style="font-size:1rem;font-weight:700;color:var(--green-light)">🐳 Docker — 5 Adım</span>
+        </div>
+        <div class="io-step" data-iostep="docker" style="background:var(--purple-b);">
+          <div class="io-step-num" style="background:var(--purple-light);color:#000;">1</div>
+          <div><strong>Uygulama read() çağırır</strong><br><span style="font-size:.75rem;color:var(--text-muted);">aynı başlangıç</span></div>
+        </div>
+        <div class="io-step" data-iostep="docker" style="background:var(--green-b);">
+          <div class="io-step-num" style="background:var(--green-light);color:#000;">2</div>
+          <div><strong>Ana Makine Kernel Dosya Sistemi</strong><br><span style="font-size:.75rem;color:var(--text-muted);">doğrudan gerçek kernel'a gider</span></div>
+        </div>
+        <div class="io-step" data-iostep="docker" style="background:var(--blue-b);">
+          <div class="io-step-num" style="background:var(--blue-light);color:#000;">3</div>
+          <div><strong>OverlayFS — Katman Taraması</strong><br><span style="font-size:.75rem;color:var(--text-muted);">hangi katmanda bu dosya var?</span></div>
+        </div>
+        <div class="io-step" data-iostep="docker" style="background:var(--yellow-b);">
+          <div class="io-step-num" style="background:var(--yellow-light);color:#000;">4</div>
+          <div><strong>Disk Sürücüsü</strong><br><span style="font-size:.75rem;color:var(--text-muted);">NVMe/SSD sürücüsü</span></div>
+        </div>
+        <div class="io-step" data-iostep="docker" style="background:var(--purple-b);">
+          <div class="io-step-num" style="background:var(--purple-light);color:#000;">5</div>
+          <div><strong>Fiziksel Disk</strong><br><span style="font-size:.75rem;color:var(--text-muted);">veri okundu</span></div>
+        </div>
+
+        <div style="margin-top:20px;padding:14px;background:var(--green-b);border-radius:10px;font-size:.82rem;line-height:1.7;">
+          <div style="color:var(--green-light);font-weight:700;margin-bottom:8px;">✅ Neden 2 adım daha az?</div>
+          <div>• VMEXIT yok → duraksama olmadan devam eder</div>
+          <div>• VM kernel katmanı yok → araya giren OS yok</div>
+          <div>• Hypervisor taklit yok → gereksiz çeviri yok</div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- Benchmark -->
+    <div class="section-label">Gerçek Dünya Benchmark Sonuçları</div>
+    <div class="sim-table">
+      <table>
+        <thead><tr><th>Metrik</th><th>VM (KVM+QEMU)</th><th>Docker Container</th><th>Fark</th></tr></thead>
+        <tbody>
+          <tr><td>Sıralı Okuma Hızı</td><td style="color:var(--orange-light)">~1.2 GB/s</td><td style="color:var(--green-light)">~3.5 GB/s</td><td style="color:var(--green-light)">~3x hızlı</td></tr>
+          <tr><td>Rastgele 4K IOPS</td><td style="color:var(--orange-light)">~45.000</td><td style="color:var(--green-light)">~120.000</td><td style="color:var(--green-light)">~2.7x hızlı</td></tr>
+          <tr><td>Disk Yanıt Süresi (p99)</td><td style="color:var(--orange-light)">~350 µs</td><td style="color:var(--green-light)">~80 µs</td><td style="color:var(--green-light)">~4.4x hızlı</td></tr>
+          <tr><td>CPU Ek Yükü</td><td style="color:var(--orange-light)">Yüksek (VMEXIT'ten)</td><td style="color:var(--green-light)">Düşük</td><td style="color:var(--green-light)">Belirgin fark</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="dio-realdata" data-realdata="dio"></div>
   </div>
 
-  <!-- ③ Overlay Filesystem -->
+  <!-- ③ Docker Katmanları -->
   <div class="tab-panel" id="tab-overlay">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+    <div class="insight-box">
+      <div class="insight-icon">💡</div>
+      <div><strong>Ana Fikir:</strong> Docker imajı üst üste binen <strong>katmanlardan</strong> oluşur. Bir dosyayı değiştirdiğinde orijinali bozmaz — sadece değişikliği yeni bir katmana yazar. Buna <strong>Copy-on-Write</strong> (değiştirince kopyala) denir.</div>
+    </div>
+
+    <!-- Copy-on-Write simülasyonu önce -->
+    <div class="section-label">① Copy-on-Write Simülasyonu — Dene</div>
+    <div style="font-size:.83rem;color:var(--text-muted);margin-bottom:12px;">
+      "Dosyayı Değiştir" butonuna bas — ne olduğunu adım adım izle:
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <button class="btn btn-green" id="btn-cow-write">✏️ config.json Dosyasını Değiştir</button>
+      <button class="btn btn-outline" id="btn-cow-reset">↺ Sıfırla</button>
+    </div>
+    <div class="cow-scene">
+      <div class="cow-box">
+        <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;">🔒 BASE LAYER — Salt Okunur (değiştirilemez)</div>
+        <div class="cow-file" id="cow-base-config" style="background:var(--green-b);color:var(--green-light);">📄 config.json</div>
+        <div class="cow-file" style="background:var(--green-b);color:var(--green-light);">📄 app.py</div>
+        <div class="cow-file" style="background:var(--green-b);color:var(--green-light);">📄 requirements.txt</div>
+      </div>
+      <div class="cow-box">
+        <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;">✏️ CONTAINER LAYER — Yazılabilir (değişiklikler buraya)</div>
+        <div id="cow-upper-area" style="min-height:80px;display:flex;flex-direction:column;gap:6px;">
+          <div style="font-size:.78rem;color:var(--text-dim);font-style:italic;padding:8px;">boş — henüz değişiklik yapılmadı</div>
+        </div>
+      </div>
+    </div>
+    <div id="cow-log" style="background:var(--bg-root);border-radius:8px;padding:12px;font-size:.78rem;font-family:var(--mono);color:var(--text-dim);min-height:60px;line-height:1.7;margin-top:4px;"></div>
+
+    <hr class="section-divider">
+
+    <!-- OverlayFS katmanları sonra -->
+    <div class="section-label">② OverlayFS — Katman Yapısı (bir katmana tıkla)</div>
+    <div style="font-size:.83rem;color:var(--text-muted);margin-bottom:16px;">
+      Docker imajı birden fazla katmandan oluşur. Alttaki katmanlar paylaşılır, en üstteki değiştirilebilir.
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
       <div>
-        <h3 style="font-size:.95rem;color:var(--text-bright);margin-bottom:12px;">📦 OverlayFS Katmanları</h3>
         <div class="overlay-stack">
           <div class="overlay-layer" data-ol="container" style="background:var(--blue-b);color:var(--blue-light);">
-            🔵 Container Layer (upperdir)
+            ✏️ Container Katmanı — değişiklikler buraya yazılır
           </div>
+          <div style="text-align:center;font-size:.75rem;color:var(--text-dim);padding:2px 0;">↑ yazılabilir · aşağısı salt okunur ↓</div>
           <div class="overlay-layer" data-ol="app" style="background:var(--green-b);color:var(--green-light);">
-            🟢 App Image Layer
+            📦 Uygulama Katmanı — kaynak kod, config
           </div>
           <div class="overlay-layer" data-ol="runtime" style="background:var(--yellow-b);color:var(--yellow-light);">
-            🟡 Runtime Layer
+            🔧 Runtime Katmanı — Python/Node/Java
           </div>
           <div class="overlay-layer" data-ol="base" style="background:var(--purple-b);color:var(--purple-light);">
-            🟣 Base OS Layer (lowerdir)
+            🐧 Temel OS Katmanı — Ubuntu/Alpine
           </div>
           <div class="overlay-layer" data-ol="merged" style="background:var(--orange-b);color:var(--orange-light);">
-            🟠 Merged View (container görür)
+            👁️ Birleşik Görünüm — container bunu görür
           </div>
-        </div>
-        <div class="overlay-layer-detail" id="ol-detail">
-          👆 <span style="color:var(--text-muted)">Bir katmana tıkla</span>
         </div>
       </div>
-
       <div>
-        <h3 style="font-size:.95rem;color:var(--text-bright);margin-bottom:12px;">📝 Copy-on-Write Simülasyonu</h3>
-        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-          <button class="btn btn-green" id="btn-cow-write">✏️ Dosyayı Değiştir</button>
-          <button class="btn btn-outline" id="btn-cow-reset">↺ Sıfırla</button>
+        <div class="overlay-layer-detail" id="ol-detail" style="min-height:160px;">
+          👆 <span style="color:var(--text-muted)">Soldan bir katmana tıkla — ne işe yaradığını öğren</span>
         </div>
-        <div class="cow-scene">
-          <div class="cow-box">
-            <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;">BASE LAYER (lowerdir — read-only)</div>
-            <div class="cow-file" id="cow-base-config" style="background:var(--green-b);color:var(--green-light);">📄 config.json</div>
-            <div class="cow-file" style="background:var(--green-b);color:var(--green-light);">📄 app.py</div>
-            <div class="cow-file" style="background:var(--green-b);color:var(--green-light);">📄 requirements.txt</div>
-          </div>
-          <div class="cow-box">
-            <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;">CONTAINER LAYER (upperdir — writable)</div>
-            <div id="cow-upper-area" style="min-height:80px;display:flex;flex-direction:column;gap:6px;">
-              <div style="font-size:.78rem;color:var(--text-dim);font-style:italic;padding:8px;">boş — henüz değişiklik yok</div>
-            </div>
-          </div>
+        <div style="margin-top:14px;padding:12px;background:var(--bg-root);border-radius:10px;font-size:.8rem;line-height:1.7;color:var(--text-muted);">
+          <strong style="color:var(--text)">💡 Neden katmanlar?</strong><br>
+          100 container aynı Ubuntu base katmanını paylaşır — her biri ayrı kopyalamaz. Bu disk alanından 10-50x tasarruf sağlar.
         </div>
-        <div id="cow-log" style="background:var(--bg-root);border-radius:8px;padding:12px;font-size:.78rem;font-family:var(--mono);color:var(--text-dim);min-height:60px;line-height:1.7;"></div>
       </div>
     </div>
   </div>
 
-  <!-- ④ DMA Simülasyonu -->
+  <!-- ④ DMA Transferi -->
   <div class="tab-panel" id="tab-dma">
+    <div class="insight-box">
+      <div class="insight-icon">💡</div>
+      <div><strong>Ana Fikir:</strong> Disk'ten RAM'e veri aktarırken CPU beklemek zorunda mı? <strong>CPU Polling</strong> modunda evet — CPU boşa bekler. <strong>DMA</strong> modunda hayır — özel bir devre (DMA birimi) aktarımı üstlenir, CPU başka işler yapar.</div>
+    </div>
+
     <div class="mode-btns">
-      <button class="mode-btn active" id="btn-mode-polling" style="background:var(--red-b);color:var(--red-light);">⚙️ CPU Polling Modu</button>
-      <button class="mode-btn" id="btn-mode-dma" style="background:var(--blue-b);color:var(--blue-light);">⚡ DMA Modu</button>
+      <button class="mode-btn active" id="btn-mode-polling" style="background:var(--red-b);color:var(--red-light);">⚙️ CPU Polling — CPU Bekler</button>
+      <button class="mode-btn" id="btn-mode-dma" style="background:var(--blue-b);color:var(--blue-light);">⚡ DMA — CPU Serbest Kalır</button>
     </div>
 
     <div class="dma-scene" id="dma-scene">
@@ -284,119 +414,28 @@ export const diskIo = {
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
       <div class="panel-box" style="border-color:var(--red-b);">
-        <h4 style="color:var(--red-light);margin:0 0 10px;font-size:.9rem;">⚙️ CPU Polling</h4>
+        <h4 style="color:var(--red-light);margin:0 0 10px;font-size:.9rem;">⚙️ CPU Polling (Eski Yöntem)</h4>
         <div style="font-size:.82rem;line-height:1.7;color:var(--text-dim);">
-          CPU disk hazır olana kadar sürekli durum sorgular.<br>
-          <strong style="color:var(--red-light)">Busy-wait</strong> — CPU transfer süresince bloklanır, başka iş yapamaz.
-          Basit donanımda yaygın, modern sistemlerde nadiren kullanılır.
+          CPU "disk hazır mı?" diye <strong style="color:var(--red-light)">defalarca sorarak bekler</strong>.<br>
+          Transfer bitene kadar başka hiçbir şey yapamaz.<br>
+          <br>
+          Basit gömülü sistemlerde görülür, modern PC'lerde kullanılmaz.
         </div>
       </div>
       <div class="panel-box" style="border-color:var(--blue-b);">
-        <h4 style="color:var(--blue-light);margin:0 0 10px;font-size:.9rem;">⚡ DMA (Direct Memory Access)</h4>
+        <h4 style="color:var(--blue-light);margin:0 0 10px;font-size:.9rem;">⚡ DMA — Doğrudan Bellek Erişimi</h4>
         <div style="font-size:.82rem;line-height:1.7;color:var(--text-dim);">
-          DMA Controller transfer esnasında CPU'yu serbest bırakır.<br>
-          CPU başka işlere devam eder, transfer bitince <strong style="color:var(--blue-light)">interrupt</strong> gelir.
-          Modern sistemlerin tamamında kullanılır.
+          CPU DMA birimine "şu veriyi al, RAM'e yaz" der ve <strong style="color:var(--blue-light)">başka işe geçer</strong>.<br>
+          Transfer bitince DMA, CPU'ya bildirim (interrupt) gönderir.<br>
+          <br>
+          Tüm modern bilgisayarlar bu yöntemi kullanır.
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ⑤ VM vs Container I/O -->
-  <div class="tab-panel" id="tab-compare">
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
-      <button class="btn btn-blue" id="btn-io-anim">▶ Adım Adım Göster</button>
-      <button class="btn btn-outline" id="btn-io-reset">↺ Sıfırla</button>
-    </div>
-
-    <div class="io-compare">
-      <div class="io-col">
-        <div style="text-align:center;margin-bottom:14px;">
-          <span style="font-size:1rem;font-weight:700;color:var(--orange-light)">🖥️ VM I/O Yolu</span>
-          <div style="font-size:.75rem;color:var(--text-muted);">~150-400 µs gecikme</div>
-        </div>
-        <div class="io-step" data-iostep="vm" style="background:var(--purple-b);">
-          <div class="io-step-num" style="background:var(--purple-light);color:#000;">1</div>
-          <div><strong>User Space read()</strong><br><span style="font-size:.75rem;color:var(--text-muted);">uygulama sistem çağrısı yapar</span></div>
-        </div>
-        <div class="io-step" data-iostep="vm" style="background:var(--blue-b);">
-          <div class="io-step-num" style="background:var(--blue-light);color:#000;">2</div>
-          <div><strong>Guest Kernel VFS</strong><br><span style="font-size:.75rem;color:var(--text-muted);">sanal dosya sistemi katmanı</span></div>
-        </div>
-        <div class="io-step" data-iostep="vm" style="background:var(--red-b);">
-          <div class="io-step-num" style="background:var(--red-light);color:#000;">3</div>
-          <div><strong>VMEXIT (kritik!)</strong><br><span style="font-size:.75rem;color:var(--text-muted);">hypervisor'a geçiş, ~5-10 µs</span></div>
-        </div>
-        <div class="io-step" data-iostep="vm" style="background:var(--yellow-b);">
-          <div class="io-step-num" style="background:var(--yellow-light);color:#000;">4</div>
-          <div><strong>Hypervisor Emülasyon</strong><br><span style="font-size:.75rem;color:var(--text-muted);">QEMU/KVM disk emülasyonu</span></div>
-        </div>
-        <div class="io-step" data-iostep="vm" style="background:var(--green-b);">
-          <div class="io-step-num" style="background:var(--green-light);color:#000;">5</div>
-          <div><strong>Host Kernel VFS</strong><br><span style="font-size:.75rem;color:var(--text-muted);">gerçek dosya sistemi</span></div>
-        </div>
-        <div class="io-step" data-iostep="vm" style="background:var(--blue-b);">
-          <div class="io-step-num" style="background:var(--blue-light);color:#000;">6</div>
-          <div><strong>Block Driver</strong><br><span style="font-size:.75rem;color:var(--text-muted);">NVMe/SCSI sürücüsü</span></div>
-        </div>
-        <div class="io-step" data-iostep="vm" style="background:var(--purple-b);">
-          <div class="io-step-num" style="background:var(--purple-light);color:#000;">7</div>
-          <div><strong>Fiziksel Disk (DMA)</strong><br><span style="font-size:.75rem;color:var(--text-muted);">gerçek okuma tamamlandı</span></div>
-        </div>
-      </div>
-
-      <div class="io-col">
-        <div style="text-align:center;margin-bottom:14px;">
-          <span style="font-size:1rem;font-weight:700;color:var(--green-light)">🐳 Container I/O Yolu</span>
-          <div style="font-size:.75rem;color:var(--text-muted);">~50-100 µs gecikme</div>
-        </div>
-        <div class="io-step" data-iostep="docker" style="background:var(--purple-b);">
-          <div class="io-step-num" style="background:var(--purple-light);color:#000;">1</div>
-          <div><strong>User Space read()</strong><br><span style="font-size:.75rem;color:var(--text-muted);">aynı sistem çağrısı</span></div>
-        </div>
-        <div class="io-step" data-iostep="docker" style="background:var(--green-b);">
-          <div class="io-step-num" style="background:var(--green-light);color:#000;">2</div>
-          <div><strong>Host Kernel VFS</strong><br><span style="font-size:.75rem;color:var(--text-muted);">OverlayFS katmanı</span></div>
-        </div>
-        <div class="io-step" data-iostep="docker" style="background:var(--blue-b);">
-          <div class="io-step-num" style="background:var(--blue-light);color:#000;">3</div>
-          <div><strong>OverlayFS Lookup</strong><br><span style="font-size:.75rem;color:var(--text-muted);">upper/lower katman tarama</span></div>
-        </div>
-        <div class="io-step" data-iostep="docker" style="background:var(--yellow-b);">
-          <div class="io-step-num" style="background:var(--yellow-light);color:#000;">4</div>
-          <div><strong>Block Driver</strong><br><span style="font-size:.75rem;color:var(--text-muted);">NVMe/SCSI sürücüsü</span></div>
-        </div>
-        <div class="io-step" data-iostep="docker" style="background:var(--purple-b);">
-          <div class="io-step-num" style="background:var(--purple-light);color:#000;">5</div>
-          <div><strong>Fiziksel Disk (DMA)</strong><br><span style="font-size:.75rem;color:var(--text-muted);">gerçek okuma tamamlandı</span></div>
-        </div>
-
-        <div style="margin-top:20px;padding:14px;background:var(--green-b);border-radius:10px;font-size:.82rem;line-height:1.7;">
-          <div style="color:var(--green-light);font-weight:700;margin-bottom:8px;">✅ Neden daha hızlı?</div>
-          <div>• VMEXIT yok → hypervisor geçiş maliyeti sıfır</div>
-          <div>• Guest Kernel overhead yok</div>
-          <div>• Hypervisor emülasyon katmanı yok</div>
-          <div>• Toplam <strong>2-3x daha düşük I/O gecikme</strong></div>
-        </div>
-      </div>
-    </div>
-
-    <div style="margin-top:16px;">
-      <h4 style="font-size:.9rem;color:var(--text-bright);margin-bottom:12px;">📊 Benchmark Karşılaştırması</h4>
-      <div class="sim-table">
-        <table>
-          <thead><tr><th>Metrik</th><th>VM (KVM+QEMU)</th><th>Container (Docker)</th><th>Fark</th></tr></thead>
-          <tbody>
-            <tr><td>Sıralı Okuma</td><td style="color:var(--orange-light)">~1.2 GB/s</td><td style="color:var(--green-light)">~3.5 GB/s</td><td style="color:var(--green-light)">~3x</td></tr>
-            <tr><td>Rastgele 4K IOPS</td><td style="color:var(--orange-light)">~45K</td><td style="color:var(--green-light)">~120K</td><td style="color:var(--green-light)">~2.7x</td></tr>
-            <tr><td>I/O Gecikme (p99)</td><td style="color:var(--orange-light)">~350 µs</td><td style="color:var(--green-light)">~80 µs</td><td style="color:var(--green-light)">~4.4x</td></tr>
-            <tr><td>CPU I/O Overhead</td><td style="color:var(--orange-light)">Yüksek (VMEXIT)</td><td style="color:var(--green-light)">Düşük</td><td style="color:var(--green-light)">Belirgin</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <div id="dio-realdata" data-realdata="dio"></div>
-  </div>
+  <!-- tab-katman gizli tutulur, JS çalışması için DOM'da kalır -->
+  <div class="tab-panel" id="tab-katman" style="display:none!important;"></div>
 </div>
 `
   },

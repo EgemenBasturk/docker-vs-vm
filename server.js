@@ -97,7 +97,7 @@ const server = createServer(async (req, res) => {
 
   // ── POST /stress/stop ─────────────────────────────
   if (req.method === 'POST' && req.url === '/stress/stop') {
-    await sh(`docker stop ${[1,2,3,4].map(i=>`${STRESS_NAME}_${i}`).join(' ')} 2>/dev/null`)
+    await sh(`docker stop ${[1,2,3,4].map(i=>`${STRESS_NAME}_${i}`).join(' ')}`)
     res.writeHead(200); res.end(JSON.stringify({ ok: true, msg: 'Container\'lar durduruldu' }))
     return
   }
