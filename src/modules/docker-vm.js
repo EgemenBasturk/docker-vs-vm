@@ -336,11 +336,7 @@ input[type=range] { flex:1; accent-color:var(--blue); }
         root.querySelector('#docker-final').textContent = '—'
         root.querySelector('#vm-bar').style.width = '0%'
         root.querySelector('#docker-bar').style.width = '0%'
-        this._runBoot(root, 'vm', vmSteps, () => {
-          const done = this._runBoot(root, 'docker', dockerSteps, () => {
-            bootBtn.disabled = false
-          })
-        })
+        this._runBoot(root, 'vm', vmSteps, () => { bootBtn.disabled = false })
         this._runBoot(root, 'docker', dockerSteps, () => {})
       })
     }

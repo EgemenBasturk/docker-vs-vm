@@ -50,6 +50,19 @@ export const diskIo = {
 
   .section-divider { border:none; border-top:1px solid var(--border); margin:28px 0 20px; }
   .section-label { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); margin-bottom:12px; }
+
+  .concept-grid-2x2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .concept-grid-2x2 .concept-title { font-weight:800 !important; }
+
+  .bench-chart { display:flex; flex-direction:column; gap:18px; }
+  .bench-row { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:16px 18px; }
+  .bench-label { font-size:.8rem; font-weight:700; color:var(--text); margin-bottom:10px; }
+  .bench-bars { display:flex; flex-direction:column; gap:7px; }
+  .bench-bar-row { display:flex; align-items:center; gap:10px; }
+  .bench-tag { font-size:.72rem; font-weight:700; width:56px; flex-shrink:0; text-align:right; }
+  .bench-track { flex:1; height:22px; background:var(--bg-root); border-radius:6px; overflow:hidden; }
+  .bench-fill { height:100%; border-radius:6px; display:flex; align-items:center; padding-left:8px; font-size:.72rem; font-weight:700; color:#000; transition:width .8s ease; white-space:nowrap; }
+  .bench-val { font-size:.75rem; font-weight:700; width:72px; flex-shrink:0; }
 </style>
 
 <div class="module-page">
@@ -73,7 +86,7 @@ export const diskIo = {
       <div><strong>Ana Fikir:</strong> Disk, RAM'den çok daha yavaştır. İşletim sistemi bu yavaşlığı gizlemek için önbellek ve akıllı zamanlama kullanır. Her dosya erişimi birden fazla yazılım katmanından geçer.</div>
     </div>
 
-    <div class="concept-grid">
+    <div class="concept-grid-2x2">
       <div class="concept-card border-blue">
         <div class="concept-icon">💾</div>
         <div class="concept-title">Disk I/O Nedir?</div>
@@ -87,7 +100,7 @@ export const diskIo = {
       <div class="concept-card border-purple">
         <div class="concept-icon">🗂️</div>
         <div class="concept-title">VFS — Sanal Dosya Sistemi</div>
-        <div class="concept-body">Uygulamalar <code>read()</code> yazar, diskin ext4 mi, btrfs mi, NFS mi olduğunu bilmez. VFS (Virtual File System) bu ayrıntıyı gizleyen soyutlama katmanıdır.</div>
+        <div class="concept-body">Uygulamalar <code>read()</code> yazar, diskin ext4 mi, btrfs mi, NFS mi olduğunu bilmez. VFS bu ayrıntıyı gizleyen soyutlama katmanıdır.</div>
       </div>
       <div class="concept-card border-yellow">
         <div class="concept-icon">🚦</div>
@@ -204,98 +217,87 @@ export const diskIo = {
 
     <hr class="section-divider">
 
-    <!-- Adım adım I/O karşılaştırması -->
-    <div class="section-label">Adım Adım Detaylı Görünüm</div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
-      <button class="btn btn-blue" id="btn-io-anim">▶ Adım Adım Göster</button>
-      <button class="btn btn-outline" id="btn-io-reset">↺ Sıfırla</button>
+    <!-- Benchmark bar chart -->
+    <div class="section-label">📊 Benchmark Karşılaştırması</div>
+    <div style="display:flex;gap:16px;font-size:.75rem;margin-bottom:14px;">
+      <span style="display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#ed8936;"></span> VM (KVM+QEMU)</span>
+      <span style="display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#48bb78;"></span> Docker Container</span>
+      <span style="color:var(--text-dim);margin-left:4px;">— çubuk uzunluğu oransal, yüksek = iyi</span>
     </div>
 
-    <div class="io-compare">
-      <div class="io-col">
-        <div style="text-align:center;margin-bottom:14px;">
-          <span style="font-size:1rem;font-weight:700;color:var(--orange-light)">🖥️ VM — 7 Adım</span>
-        </div>
-        <div class="io-step" data-iostep="vm" style="background:var(--purple-b);">
-          <div class="io-step-num" style="background:var(--purple-light);color:#000;">1</div>
-          <div><strong>Uygulama read() çağırır</strong><br><span style="font-size:.75rem;color:var(--text-muted);">program diske erişmek ister</span></div>
-        </div>
-        <div class="io-step" data-iostep="vm" style="background:var(--blue-b);">
-          <div class="io-step-num" style="background:var(--blue-light);color:#000;">2</div>
-          <div><strong>VM Kernel Dosya Sistemi</strong><br><span style="font-size:.75rem;color:var(--text-muted);">VM'nin kendi kernel'ı isteği işler</span></div>
-        </div>
-        <div class="io-step" data-iostep="vm" style="background:var(--red-b);">
-          <div class="io-step-num" style="background:var(--red-light);color:#000;">3</div>
-          <div><strong>⚠️ VMEXIT — VM Duruyor</strong><br><span style="font-size:.75rem;color:var(--red-light);">hypervisor kontrolü alır, ~5–10 µs bekler</span></div>
-        </div>
-        <div class="io-step" data-iostep="vm" style="background:var(--yellow-b);">
-          <div class="io-step-num" style="background:var(--yellow-light);color:#000;">4</div>
-          <div><strong>Hypervisor Disk Taklidi Yapar</strong><br><span style="font-size:.75rem;color:var(--text-muted);">VMware/KVM gerçek diski simüle eder</span></div>
-        </div>
-        <div class="io-step" data-iostep="vm" style="background:var(--green-b);">
-          <div class="io-step-num" style="background:var(--green-light);color:#000;">5</div>
-          <div><strong>Ana Makine Dosya Sistemi</strong><br><span style="font-size:.75rem;color:var(--text-muted);">gerçek işletim sistemine ulaşıldı</span></div>
-        </div>
-        <div class="io-step" data-iostep="vm" style="background:var(--blue-b);">
-          <div class="io-step-num" style="background:var(--blue-light);color:#000;">6</div>
-          <div><strong>Disk Sürücüsü</strong><br><span style="font-size:.75rem;color:var(--text-muted);">NVMe/SSD sürücüsü</span></div>
-        </div>
-        <div class="io-step" data-iostep="vm" style="background:var(--purple-b);">
-          <div class="io-step-num" style="background:var(--purple-light);color:#000;">7</div>
-          <div><strong>Fiziksel Disk</strong><br><span style="font-size:.75rem;color:var(--text-muted);">veri okundu, geri dön</span></div>
+    <div class="bench-chart" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div class="bench-row">
+        <div class="bench-label">💿 Sıralı Okuma Hızı</div>
+        <div class="bench-bars">
+          <div class="bench-bar-row">
+            <div class="bench-tag" style="color:#ed8936;">VM</div>
+            <div class="bench-track"><div class="bench-fill" style="width:34%;background:#ed8936;">1.2 GB/s</div></div>
+            <div class="bench-val" style="color:#ed8936;">1.2 GB/s</div>
+          </div>
+          <div class="bench-bar-row">
+            <div class="bench-tag" style="color:#48bb78;">Docker</div>
+            <div class="bench-track"><div class="bench-fill" style="width:100%;background:#48bb78;">3.5 GB/s</div></div>
+            <div class="bench-val" style="color:#48bb78;">3.5 GB/s <span style="font-weight:400;opacity:.7;">~3x</span></div>
+          </div>
         </div>
       </div>
 
-      <div class="io-col">
-        <div style="text-align:center;margin-bottom:14px;">
-          <span style="font-size:1rem;font-weight:700;color:var(--green-light)">🐳 Docker — 5 Adım</span>
+      <div class="bench-row">
+        <div class="bench-label">⚡ Rastgele 4K IOPS (saniyedeki işlem)</div>
+        <div class="bench-bars">
+          <div class="bench-bar-row">
+            <div class="bench-tag" style="color:#ed8936;">VM</div>
+            <div class="bench-track"><div class="bench-fill" style="width:37%;background:#ed8936;">45K</div></div>
+            <div class="bench-val" style="color:#ed8936;">45.000</div>
+          </div>
+          <div class="bench-bar-row">
+            <div class="bench-tag" style="color:#48bb78;">Docker</div>
+            <div class="bench-track"><div class="bench-fill" style="width:100%;background:#48bb78;">120K</div></div>
+            <div class="bench-val" style="color:#48bb78;">120.000 <span style="font-weight:400;opacity:.7;">~2.7x</span></div>
+          </div>
         </div>
-        <div class="io-step" data-iostep="docker" style="background:var(--purple-b);">
-          <div class="io-step-num" style="background:var(--purple-light);color:#000;">1</div>
-          <div><strong>Uygulama read() çağırır</strong><br><span style="font-size:.75rem;color:var(--text-muted);">aynı başlangıç</span></div>
-        </div>
-        <div class="io-step" data-iostep="docker" style="background:var(--green-b);">
-          <div class="io-step-num" style="background:var(--green-light);color:#000;">2</div>
-          <div><strong>Ana Makine Kernel Dosya Sistemi</strong><br><span style="font-size:.75rem;color:var(--text-muted);">doğrudan gerçek kernel'a gider</span></div>
-        </div>
-        <div class="io-step" data-iostep="docker" style="background:var(--blue-b);">
-          <div class="io-step-num" style="background:var(--blue-light);color:#000;">3</div>
-          <div><strong>OverlayFS — Katman Taraması</strong><br><span style="font-size:.75rem;color:var(--text-muted);">hangi katmanda bu dosya var?</span></div>
-        </div>
-        <div class="io-step" data-iostep="docker" style="background:var(--yellow-b);">
-          <div class="io-step-num" style="background:var(--yellow-light);color:#000;">4</div>
-          <div><strong>Disk Sürücüsü</strong><br><span style="font-size:.75rem;color:var(--text-muted);">NVMe/SSD sürücüsü</span></div>
-        </div>
-        <div class="io-step" data-iostep="docker" style="background:var(--purple-b);">
-          <div class="io-step-num" style="background:var(--purple-light);color:#000;">5</div>
-          <div><strong>Fiziksel Disk</strong><br><span style="font-size:.75rem;color:var(--text-muted);">veri okundu</span></div>
-        </div>
+      </div>
 
-        <div style="margin-top:20px;padding:14px;background:var(--green-b);border-radius:10px;font-size:.82rem;line-height:1.7;">
-          <div style="color:var(--green-light);font-weight:700;margin-bottom:8px;">✅ Neden 2 adım daha az?</div>
-          <div>• VMEXIT yok → duraksama olmadan devam eder</div>
-          <div>• VM kernel katmanı yok → araya giren OS yok</div>
-          <div>• Hypervisor taklit yok → gereksiz çeviri yok</div>
+      <div class="bench-row">
+        <div class="bench-label">⏱️ Disk Yanıt Süresi — düşük olan kazanır</div>
+        <div class="bench-bars">
+          <div class="bench-bar-row">
+            <div class="bench-tag" style="color:#ed8936;">VM</div>
+            <div class="bench-track"><div class="bench-fill" style="width:100%;background:#ed8936;">350 µs</div></div>
+            <div class="bench-val" style="color:#ed8936;">350 µs ❌</div>
+          </div>
+          <div class="bench-bar-row">
+            <div class="bench-tag" style="color:#48bb78;">Docker</div>
+            <div class="bench-track"><div class="bench-fill" style="width:23%;background:#48bb78;">80 µs</div></div>
+            <div class="bench-val" style="color:#48bb78;">80 µs <span style="font-weight:400;opacity:.7;">~4.4x</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bench-row">
+        <div class="bench-label">🧠 CPU Ek Yükü (VMEXIT'ten kaynaklanan)</div>
+        <div class="bench-bars">
+          <div class="bench-bar-row">
+            <div class="bench-tag" style="color:#ed8936;">VM</div>
+            <div class="bench-track"><div class="bench-fill" style="width:85%;background:#ed8936;">Yüksek</div></div>
+            <div class="bench-val" style="color:#ed8936;">Yüksek ❌</div>
+          </div>
+          <div class="bench-bar-row">
+            <div class="bench-tag" style="color:#48bb78;">Docker</div>
+            <div class="bench-track"><div class="bench-fill" style="width:18%;background:#48bb78;">Düşük</div></div>
+            <div class="bench-val" style="color:#48bb78;">Düşük ✅</div>
+          </div>
         </div>
       </div>
     </div>
 
-    <hr class="section-divider">
-
-    <!-- Benchmark -->
-    <div class="section-label">Gerçek Dünya Benchmark Sonuçları</div>
-    <div class="sim-table">
-      <table>
-        <thead><tr><th>Metrik</th><th>VM (KVM+QEMU)</th><th>Docker Container</th><th>Fark</th></tr></thead>
-        <tbody>
-          <tr><td>Sıralı Okuma Hızı</td><td style="color:var(--orange-light)">~1.2 GB/s</td><td style="color:var(--green-light)">~3.5 GB/s</td><td style="color:var(--green-light)">~3x hızlı</td></tr>
-          <tr><td>Rastgele 4K IOPS</td><td style="color:var(--orange-light)">~45.000</td><td style="color:var(--green-light)">~120.000</td><td style="color:var(--green-light)">~2.7x hızlı</td></tr>
-          <tr><td>Disk Yanıt Süresi (p99)</td><td style="color:var(--orange-light)">~350 µs</td><td style="color:var(--green-light)">~80 µs</td><td style="color:var(--green-light)">~4.4x hızlı</td></tr>
-          <tr><td>CPU Ek Yükü</td><td style="color:var(--orange-light)">Yüksek (VMEXIT'ten)</td><td style="color:var(--green-light)">Düşük</td><td style="color:var(--green-light)">Belirgin fark</td></tr>
-        </tbody>
-      </table>
+    <!-- Gizli placeholder — JS _initCompare null hatasını önler -->
+    <div style="display:none;">
+      <button id="btn-io-anim"></button>
+      <button id="btn-io-reset"></button>
     </div>
-    <div id="dio-realdata" data-realdata="dio"></div>
+
+    <div id="dio-realdata" data-realdata="dio" style="margin-top:16px;"></div>
   </div>
 
   <!-- ③ Docker Katmanları -->
@@ -377,58 +379,94 @@ export const diskIo = {
       <div><strong>Ana Fikir:</strong> Disk'ten RAM'e veri aktarırken CPU beklemek zorunda mı? <strong>CPU Polling</strong> modunda evet — CPU boşa bekler. <strong>DMA</strong> modunda hayır — özel bir devre (DMA birimi) aktarımı üstlenir, CPU başka işler yapar.</div>
     </div>
 
-    <div class="mode-btns">
-      <button class="mode-btn active" id="btn-mode-polling" style="background:var(--red-b);color:var(--red-light);">⚙️ CPU Polling — CPU Bekler</button>
-      <button class="mode-btn" id="btn-mode-dma" style="background:var(--blue-b);color:var(--blue-light);">⚡ DMA — CPU Serbest Kalır</button>
+    <!-- Mod seçici -->
+    <div style="display:flex;gap:0;margin-bottom:24px;border-radius:10px;overflow:hidden;border:1px solid var(--border);max-width:480px;">
+      <button class="mode-btn active" id="btn-mode-polling"
+        style="flex:1;padding:12px 20px;border-radius:0;border:none;background:var(--red-b);color:var(--red-light);font-size:.85rem;font-weight:700;">
+        ⚙️ CPU Polling
+      </button>
+      <div style="width:1px;background:var(--border);flex-shrink:0;"></div>
+      <button class="mode-btn" id="btn-mode-dma"
+        style="flex:1;padding:12px 20px;border-radius:0;border:none;background:var(--bg-card);color:var(--text-muted);font-size:.85rem;font-weight:700;">
+        ⚡ DMA Modu
+      </button>
     </div>
 
-    <div class="dma-scene" id="dma-scene">
-      <div class="dma-box" id="dma-cpu">
-        <div class="dma-icon">🧠</div>
-        <div style="font-weight:700;font-size:.88rem;">CPU</div>
-        <div class="dma-label" id="dma-cpu-label">Hazır</div>
-        <div class="dma-progress"><div class="dma-bar" id="dma-cpu-bar" style="background:var(--red-light)"></div></div>
-      </div>
-      <div class="dma-arrow" id="arr-cpu-ram">→</div>
-      <div class="dma-box" id="dma-ram">
-        <div class="dma-icon">💾</div>
-        <div style="font-weight:700;font-size:.88rem;">RAM</div>
-        <div class="dma-label" id="dma-ram-label">Boş</div>
-        <div class="dma-progress"><div class="dma-bar" id="dma-ram-bar" style="background:var(--green-light)"></div></div>
-      </div>
-      <div class="dma-arrow" id="arr-ram-disk">→</div>
-      <div class="dma-box" id="dma-disk">
-        <div class="dma-icon">💿</div>
-        <div style="font-weight:700;font-size:.88rem;">Disk</div>
-        <div class="dma-label" id="dma-disk-label">Hazır</div>
-        <div class="dma-progress"><div class="dma-bar" id="dma-disk-bar" style="background:var(--blue-light)"></div></div>
+    <!-- CPU Durum Göstergesi -->
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+      <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);">CPU Durumu</div>
+      <div id="dma-cpu-status" style="display:flex;align-items:center;gap:8px;padding:8px 18px;border-radius:20px;background:var(--bg-card);border:2px solid var(--border);transition:all .4s;font-weight:700;font-size:.88rem;">
+        <div id="dma-status-dot" style="width:10px;height:10px;border-radius:50%;background:var(--text-dim);transition:all .4s;flex-shrink:0;"></div>
+        <span id="dma-status-text">Hazır</span>
       </div>
     </div>
 
-    <div style="text-align:center;margin:12px 0;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+    <!-- Sahne -->
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:24px 20px;margin-bottom:12px;">
+      <!-- Veri akış yönü etiketi -->
+      <div style="text-align:center;font-size:.72rem;color:var(--text-dim);margin-bottom:16px;letter-spacing:.06em;text-transform:uppercase;">
+        ← veri akışı: disk → ram →
+      </div>
+
+      <div class="dma-scene" id="dma-scene" style="margin:0;">
+        <div class="dma-box" id="dma-cpu" style="flex:1;">
+          <div class="dma-icon">🧠</div>
+          <div style="font-weight:700;font-size:.9rem;margin-bottom:2px;">CPU</div>
+          <div class="dma-label" id="dma-cpu-label">Hazır</div>
+          <div class="dma-progress" style="margin-top:10px;"><div class="dma-bar" id="dma-cpu-bar" style="background:var(--red-light)"></div></div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <div class="dma-arrow" id="arr-cpu-ram" style="font-size:1.8rem;">⇄</div>
+          <div id="dma-ctrl-badge" style="font-size:.65rem;font-weight:700;padding:3px 8px;border-radius:8px;background:var(--blue-b);color:var(--blue-light);opacity:0;transition:opacity .4s;white-space:nowrap;">DMA Birimi</div>
+        </div>
+
+        <div class="dma-box" id="dma-ram" style="flex:1;">
+          <div class="dma-icon">🗄️</div>
+          <div style="font-weight:700;font-size:.9rem;margin-bottom:2px;">RAM</div>
+          <div class="dma-label" id="dma-ram-label">Boş</div>
+          <div class="dma-progress" style="margin-top:10px;"><div class="dma-bar" id="dma-ram-bar" style="background:var(--green-light)"></div></div>
+        </div>
+
+        <div class="dma-arrow" id="arr-ram-disk" style="font-size:1.8rem;">⇄</div>
+
+        <div class="dma-box" id="dma-disk" style="flex:1;">
+          <div class="dma-icon">💿</div>
+          <div style="font-weight:700;font-size:.9rem;margin-bottom:2px;">Disk</div>
+          <div class="dma-label" id="dma-disk-label">Hazır</div>
+          <div class="dma-progress" style="margin-top:10px;"><div class="dma-bar" id="dma-disk-bar" style="background:var(--blue-light)"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-bottom:12px;">
       <button class="btn btn-blue" id="btn-dma-start">▶ Simülasyonu Başlat</button>
       <button class="btn btn-outline" id="btn-dma-reset">↺ Sıfırla</button>
     </div>
 
-    <div id="dma-log" class="sim-log" style="height:160px;margin-top:8px;"></div>
+    <div id="dma-log" class="sim-log" style="height:150px;margin-bottom:16px;"></div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
-      <div class="panel-box" style="border-color:var(--red-b);">
-        <h4 style="color:var(--red-light);margin:0 0 10px;font-size:.9rem;">⚙️ CPU Polling (Eski Yöntem)</h4>
-        <div style="font-size:.82rem;line-height:1.7;color:var(--text-dim);">
-          CPU "disk hazır mı?" diye <strong style="color:var(--red-light)">defalarca sorarak bekler</strong>.<br>
-          Transfer bitene kadar başka hiçbir şey yapamaz.<br>
-          <br>
-          Basit gömülü sistemlerde görülür, modern PC'lerde kullanılmaz.
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div style="background:var(--red-b);border:1px solid color-mix(in srgb,var(--red-light) 30%,transparent);border-radius:14px;padding:18px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <div style="width:10px;height:10px;border-radius:50%;background:var(--red-light);flex-shrink:0;"></div>
+          <h4 style="color:var(--red-light);margin:0;font-size:.9rem;">CPU Polling</h4>
+        </div>
+        <div style="font-size:.82rem;line-height:1.75;color:var(--text-dim);">
+          CPU sürekli "disk hazır mı?" diye sorar.<br>
+          Transfer bitene kadar <strong style="color:var(--red-light)">başka hiçbir şey yapamaz</strong>.<br><br>
+          Basit mikrodenetleyicilerde kullanılır.
         </div>
       </div>
-      <div class="panel-box" style="border-color:var(--blue-b);">
-        <h4 style="color:var(--blue-light);margin:0 0 10px;font-size:.9rem;">⚡ DMA — Doğrudan Bellek Erişimi</h4>
-        <div style="font-size:.82rem;line-height:1.7;color:var(--text-dim);">
-          CPU DMA birimine "şu veriyi al, RAM'e yaz" der ve <strong style="color:var(--blue-light)">başka işe geçer</strong>.<br>
-          Transfer bitince DMA, CPU'ya bildirim (interrupt) gönderir.<br>
-          <br>
-          Tüm modern bilgisayarlar bu yöntemi kullanır.
+      <div style="background:var(--blue-b);border:1px solid color-mix(in srgb,var(--blue-light) 30%,transparent);border-radius:14px;padding:18px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <div style="width:10px;height:10px;border-radius:50%;background:var(--blue-light);flex-shrink:0;"></div>
+          <h4 style="color:var(--blue-light);margin:0;font-size:.9rem;">DMA — Doğrudan Bellek Erişimi</h4>
+        </div>
+        <div style="font-size:.82rem;line-height:1.75;color:var(--text-dim);">
+          DMA birimi transferi üstlenir, CPU <strong style="color:var(--blue-light)">serbest kalır</strong>.<br>
+          Transfer bitince CPU'ya bildirim (interrupt) gelir.<br><br>
+          Tüm modern bilgisayarlarda kullanılan yöntem.
         </div>
       </div>
     </div>
@@ -592,17 +630,22 @@ export const diskIo = {
     const startBtn = root.querySelector('#btn-dma-start')
     const resetBtn = root.querySelector('#btn-dma-reset')
 
+    const setModeStyle = (active, inactive, bg, color) => {
+      active.style.background = bg
+      active.style.color = color
+      inactive.style.background = 'var(--bg-card)'
+      inactive.style.color = 'var(--text-muted)'
+    }
+
     pollingBtn.addEventListener('click', () => {
       this._dmaMode = 'polling'
-      pollingBtn.classList.add('active')
-      dmaBtn.classList.remove('active')
+      setModeStyle(pollingBtn, dmaBtn, 'var(--red-b)', 'var(--red-light)')
       this._resetDma(root)
     })
 
     dmaBtn.addEventListener('click', () => {
       this._dmaMode = 'dma'
-      dmaBtn.classList.add('active')
-      pollingBtn.classList.remove('active')
+      setModeStyle(dmaBtn, pollingBtn, 'var(--blue-b)', 'var(--blue-light)')
       this._resetDma(root)
     })
 
@@ -616,17 +659,14 @@ export const diskIo = {
 
   _resetDma(root) {
     this._dmaRunning = false
-    const log = root.querySelector('#dma-log')
-    log.innerHTML = ''
+    root.querySelector('#dma-log').innerHTML = ''
 
-    const ids = ['dma-cpu', 'dma-ram', 'dma-disk']
-    ids.forEach(id => {
-      const el = root.querySelector('#' + id)
-      el.classList.remove('active', 'cpu-active', 'done')
-    })
-    ;['arr-cpu-ram', 'arr-ram-disk'].forEach(id => {
+    ;['dma-cpu', 'dma-ram', 'dma-disk'].forEach(id =>
+      root.querySelector('#' + id)?.classList.remove('active', 'cpu-active', 'done')
+    )
+    ;['arr-cpu-ram', 'arr-ram-disk'].forEach(id =>
       root.querySelector('#' + id)?.classList.remove('active', 'cpu-active')
-    })
+    )
     ;['dma-cpu-bar', 'dma-ram-bar', 'dma-disk-bar'].forEach(id => {
       const el = root.querySelector('#' + id)
       if (el) el.style.width = '0%'
@@ -635,6 +675,15 @@ export const diskIo = {
     root.querySelector('#dma-cpu-label').textContent = 'Hazır'
     root.querySelector('#dma-ram-label').textContent = 'Boş'
     root.querySelector('#dma-disk-label').textContent = 'Hazır'
+
+    const dot  = root.querySelector('#dma-status-dot')
+    const txt  = root.querySelector('#dma-status-text')
+    const box  = root.querySelector('#dma-cpu-status')
+    const ctrl = root.querySelector('#dma-ctrl-badge')
+    if (dot)  dot.style.cssText  = 'width:10px;height:10px;border-radius:50%;background:var(--text-dim);transition:all .4s;flex-shrink:0;'
+    if (txt)  { txt.textContent = 'Hazır'; txt.style.color = 'var(--text-muted)' }
+    if (box)  { box.style.borderColor = 'var(--border)'; box.style.background = 'var(--bg-card)' }
+    if (ctrl) ctrl.style.opacity = '0'
   },
 
   _runDma(root) {
@@ -649,7 +698,21 @@ export const diskIo = {
     const active = (id, cls) => { root.querySelector('#' + id).classList.add(cls) }
     const deactive = (id, cls) => { root.querySelector('#' + id).classList.remove(cls) }
 
+    const setStatus = (emoji, text, dotColor, borderColor) => {
+      const dot  = root.querySelector('#dma-status-dot')
+      const txt  = root.querySelector('#dma-status-text')
+      const box  = root.querySelector('#dma-cpu-status')
+      if (dot) dot.style.background = dotColor
+      if (txt) { txt.textContent = `${emoji} ${text}`; txt.style.color = dotColor }
+      if (box) { box.style.borderColor = borderColor; box.style.background = borderColor + '22' }
+    }
+    const showCtrl = (visible) => {
+      const el = root.querySelector('#dma-ctrl-badge')
+      if (el) el.style.opacity = visible ? '1' : '0'
+    }
+
     if (this._dmaMode === 'polling') {
+      setStatus('🔴', 'MEŞGUL — disk yanıtını bekliyor', 'var(--red-light)', 'var(--red-light)')
       addLog('⚙️ CPU Polling modu başlatıldı', 'var(--red-light)')
       active('dma-cpu', 'cpu-active')
       setLabel('dma-cpu-label', 'I/O isteği gönderdi')
@@ -700,6 +763,7 @@ export const diskIo = {
         setLabel('dma-cpu-label', 'Tamamlandı')
         deactive('dma-cpu', 'cpu-active')
         root.querySelector('#dma-cpu').classList.add('done')
+        setStatus('❌', 'BLOKLANDÍ — 3.9s boşa harcandı', 'var(--orange-light)', 'var(--orange-light)')
         addLog('✅ Transfer tamamlandı. CPU transfer süresince bloklandı!', 'var(--orange-light)')
         addLog('⚠️ CPU başka iş yapamadı — bu süre tamamen israf!', 'var(--red-light)')
         this._dmaRunning = false
@@ -707,6 +771,8 @@ export const diskIo = {
 
       this._timers.push(t1, t2, t3, t4, t5, t6)
     } else {
+      setStatus('🔵', 'DMA programlandı', 'var(--blue-light)', 'var(--blue-light)')
+      showCtrl(true)
       addLog('⚡ DMA modu başlatıldı', 'var(--blue-light)')
       active('dma-cpu', 'active')
       setLabel('dma-cpu-label', 'DMA programladı')
@@ -719,6 +785,7 @@ export const diskIo = {
       }, 400)
 
       let t2 = setTimeout(() => {
+        setStatus('🟢', 'SERBEST — başka iş yapıyor', 'var(--green-light)', 'var(--green-light)')
         addLog('→ DMA transferi devam ediyor. CPU SERBEST — başka iş yapabilir!', 'var(--blue-light)')
         deactive('dma-cpu', 'active')
         setBar('dma-cpu-bar', 80)
@@ -745,6 +812,7 @@ export const diskIo = {
       }, 2200)
 
       let t5 = setTimeout(() => {
+        setStatus('✅', 'Interrupt aldı — transfer bitti', 'var(--green-light)', 'var(--green-light)')
         root.querySelector('#dma-cpu').classList.add('done')
         setBar('dma-cpu-bar', 100)
         setLabel('dma-cpu-label', 'Interrupt aldı')
@@ -764,6 +832,7 @@ export const diskIo = {
 
     const reset = () => steps.forEach(s => s.classList.remove('visible'))
 
+    if (!startBtn) return
     startBtn.addEventListener('click', () => {
       reset()
       const vmSteps = root.querySelectorAll('[data-iostep="vm"]')
