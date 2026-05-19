@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+
+# Vite cache
+.vite/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.vscode/
+.idea/
+*.suo
+*.swp
+.DS_Store
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# Reference files (not part of source)
+files/
+./files
