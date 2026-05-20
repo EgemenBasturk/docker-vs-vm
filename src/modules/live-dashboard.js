@@ -1,141 +1,377 @@
-import snapshot from '../data/snapshot.json'
-
-const POLL_MS   = 2000
-const HISTORY   = 40   // kaç veri noktası tutulsun
-
 export const liveDashboard = {
-  _timers:  [],
-  _history: { ctxt: [], ring0: [], pfault: [] },
-  _cur:     {},
-  _disp:    { ctxt: 0, ring0: 0, pfault: 0, reads: 0 },
-  _live:    false,
-  _containers: 0,
-  _raf:     null,
-
   template() {
     return `
 <style>
-  .ld-wrap      { max-width:960px; margin:0 auto; padding-bottom:32px; }
-  .ld-status    { display:flex; align-items:center; gap:10px; padding:10px 16px;
-                  background:var(--bg-card); border:1px solid var(--border);
-                  border-radius:10px; margin-bottom:20px; font-size:.8rem; }
-  .ld-dot       { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-  .ld-dot.live  { background:var(--green-light); animation:pulse 1.2s infinite; }
-  .ld-dot.snap  { background:var(--yellow-light); }
-  .ld-sys       { color:var(--text-muted); margin-left:auto; font-family:var(--font-mono); font-size:.75rem; }
+  .cmp-page     { max-width:1000px; margin:0 auto; padding-bottom:40px; }
 
-  .ld-kpis      { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
-  .ld-kpi       { background:var(--bg-card); border:2px solid var(--border);
-                  border-radius:14px; padding:20px 18px; transition:border-color .4s, box-shadow .4s; }
-  .ld-kpi.spike { box-shadow:0 0 24px currentColor; }
-  .ld-kpi-val   { font-family:var(--font-mono); font-size:1.7rem; font-weight:800;
-                  line-height:1; margin-bottom:6px; transition:color .3s; }
-  .ld-kpi-lbl   { font-size:.72rem; color:var(--text-muted); font-weight:600;
-                  text-transform:uppercase; letter-spacing:.06em; }
-  .ld-kpi-sub   { font-size:.7rem; color:var(--text-subtle); margin-top:4px; }
+  /* Hero karşılaştırma kartları */
+  .cmp-hero     { display:grid; grid-template-columns:1fr auto 1fr; gap:0; margin-bottom:28px;
+                  background:var(--bg-card); border:1px solid var(--border); border-radius:16px;
+                  overflow:hidden; }
+  .cmp-side     { padding:28px 24px; }
+  .cmp-side.docker { border-right:1px solid var(--border); }
+  .cmp-divider  { display:flex; flex-direction:column; align-items:center; justify-content:center;
+                  padding:0 16px; background:var(--bg-root); gap:8px; }
+  .cmp-vs       { font-size:.7rem; font-weight:800; color:var(--text-muted);
+                  letter-spacing:.1em; writing-mode:vertical-rl; }
+  .cmp-side-icon{ font-size:2.2rem; margin-bottom:10px; }
+  .cmp-side-title{ font-size:1.05rem; font-weight:800; color:var(--text-bright); margin-bottom:6px; }
+  .cmp-side-sub { font-size:.78rem; color:var(--text-muted); line-height:1.5; }
+  .cmp-side-pills{ display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+  .cmp-pill     { font-size:.68rem; font-weight:700; padding:3px 9px; border-radius:20px; }
+  .pill-green   { background:var(--green-b); color:var(--green-light); }
+  .pill-blue    { background:var(--blue-b);  color:var(--blue-light);  }
+  .pill-red     { background:var(--red-b);   color:var(--red-light);   }
+  .pill-yellow  { background:var(--yellow-b);color:var(--yellow-light);}
+  .pill-purple  { background:var(--purple-b);color:var(--purple-light);}
 
-  .ld-chart-wrap { background:var(--bg-card); border:1px solid var(--border);
-                   border-radius:14px; padding:16px 18px; margin-bottom:16px; }
-  .ld-chart-title{ font-size:.78rem; font-weight:700; color:var(--text-muted);
-                   text-transform:uppercase; letter-spacing:.06em; margin-bottom:10px; }
-  .ld-canvas    { width:100%; height:110px; display:block; border-radius:6px; }
+  /* Bar chart bölümü */
+  .cmp-section  { background:var(--bg-card); border:1px solid var(--border);
+                  border-radius:14px; padding:22px 24px; margin-bottom:16px; }
+  .cmp-section-title { font-size:.82rem; font-weight:700; color:var(--text-muted);
+                       text-transform:uppercase; letter-spacing:.07em; margin-bottom:18px;
+                       display:flex; align-items:center; gap:8px; }
+  .cmp-section-title::after { content:''; flex:1; height:1px; background:var(--border); }
 
-  .ld-cpu-wrap  { background:var(--bg-card); border:1px solid var(--border);
-                  border-radius:14px; padding:16px 18px; margin-bottom:16px; }
-  .ld-cpu-bar   { height:32px; border-radius:8px; overflow:hidden;
-                  display:flex; margin-top:10px; transition:all .6s; }
-  .ld-cpu-seg   { display:flex; align-items:center; justify-content:center;
-                  font-size:.72rem; font-weight:700; transition:width .6s; overflow:hidden;
-                  white-space:nowrap; padding:0 6px; }
+  .bar-row      { display:grid; grid-template-columns:160px 1fr 1fr; gap:12px;
+                  align-items:center; margin-bottom:14px; }
+  .bar-label    { font-size:.78rem; color:var(--text-muted); font-weight:600; }
+  .bar-wrap     { display:flex; flex-direction:column; gap:4px; }
+  .bar-track    { height:22px; background:var(--bg-root); border-radius:6px; overflow:hidden;
+                  position:relative; }
+  .bar-fill     { height:100%; border-radius:6px; display:flex; align-items:center;
+                  padding-left:8px; font-size:.7rem; font-weight:700;
+                  transition:width 1.2s cubic-bezier(.22,.61,.36,1); white-space:nowrap; }
+  .bar-name     { font-size:.68rem; color:var(--text-subtle); margin-top:2px; }
+  .bar-unit     { font-size:.65rem; color:var(--text-subtle); margin-left:auto;
+                  padding-right:8px; position:absolute; right:0; top:50%; transform:translateY(-50%); }
 
-  .ld-docker    { background:var(--bg-card); border:1px solid var(--border);
-                  border-radius:14px; padding:20px 22px; }
-  .ld-docker-title { font-size:.9rem; font-weight:700; color:var(--text-bright);
-                     margin-bottom:4px; }
-  .ld-docker-sub { font-size:.78rem; color:var(--text-muted); margin-bottom:16px; }
-  .ld-docker-btns{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-  .ld-ccount    { margin-left:auto; font-family:var(--font-mono); font-size:.82rem; color:var(--text-muted); }
-  .ld-ccount span{ color:var(--green-light); font-weight:700; }
+  /* Karşılaştırma tablosu */
+  .cmp-table    { width:100%; border-collapse:collapse; font-size:.8rem; }
+  .cmp-table th { padding:10px 14px; text-align:left; font-size:.7rem; font-weight:700;
+                  color:var(--text-muted); text-transform:uppercase; letter-spacing:.07em;
+                  border-bottom:1px solid var(--border); }
+  .cmp-table td { padding:11px 14px; border-bottom:1px solid rgba(255,255,255,.04);
+                  vertical-align:middle; }
+  .cmp-table tr:last-child td { border-bottom:none; }
+  .cmp-table tr:hover td { background:rgba(255,255,255,.02); }
+  .td-feature   { color:var(--text-bright); font-weight:600; }
+  .td-docker    { color:var(--green-light); }
+  .td-vm        { color:var(--blue-light); }
+  .win-badge    { display:inline-block; font-size:.62rem; font-weight:800; padding:2px 7px;
+                  border-radius:10px; margin-left:6px; vertical-align:middle; }
+  .win-d        { background:var(--green-b); color:var(--green-light); }
+  .win-v        { background:var(--blue-b);  color:var(--blue-light);  }
+  .win-tie      { background:var(--border);  color:var(--text-muted);  }
 
-  .ld-no-server { padding:10px 14px; background:var(--yellow-b); border-radius:8px;
-                  font-size:.78rem; color:var(--yellow-light); margin-top:10px; display:none; }
+  /* Mimari özet */
+  .arch-grid    { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .arch-card    { background:var(--bg-root); border:1px solid var(--border);
+                  border-radius:10px; padding:16px; }
+  .arch-title   { font-size:.8rem; font-weight:700; margin-bottom:10px; }
+  .arch-layer   { display:flex; align-items:center; gap:8px; padding:7px 10px;
+                  border-radius:6px; margin-bottom:4px; font-size:.75rem; font-weight:600; }
+  .arch-arrow   { text-align:center; font-size:.7rem; color:var(--text-subtle); padding:1px 0; }
+
+  @keyframes barIn { from { width:0 } }
+  .bar-fill { animation: barIn 1.2s cubic-bezier(.22,.61,.36,1) both; }
 </style>
 
 <div class="module-page">
   <div class="module-header">
-    <div class="module-badge" style="background:var(--green-b);color:var(--green-light);">Canlı</div>
-    <h2>📊 Canlı Sistem Metrikleri</h2>
-    <p>Gerçek zamanlı kernel istatistikleri — Docker yük testi ile canlı karşılaştırma.</p>
+    <div class="module-badge" style="background:var(--purple-b);color:var(--purple-light);">Karşılaştırma</div>
+    <h2>📊 Docker vs VM — Performans Karşılaştırması</h2>
+    <p>Gerçek benchmark verileriyle Docker container ve Sanal Makine arasındaki farklar.</p>
   </div>
 
-  <div class="ld-wrap">
+  <div class="cmp-page">
 
-    <!-- Durum çubuğu -->
-    <div class="ld-status">
-      <div class="ld-dot" id="ld-dot"></div>
-      <span id="ld-status-txt">Bağlanıyor...</span>
-      <span class="ld-sys" id="ld-sys-info"></span>
-    </div>
-
-    <!-- 4 KPI kartı -->
-    <div class="ld-kpis">
-      <div class="ld-kpi" id="kpi-ctxt" style="border-color:var(--blue);color:var(--blue-light);">
-        <div class="ld-kpi-val" id="val-ctxt">—</div>
-        <div class="ld-kpi-lbl">Context Switch/s</div>
-        <div class="ld-kpi-sub" id="sub-ctxt">kernel process geçiş hızı</div>
+    <!-- Hero -->
+    <div class="cmp-hero">
+      <div class="cmp-side docker">
+        <div class="cmp-side-icon">🐳</div>
+        <div class="cmp-side-title">Docker Container</div>
+        <div class="cmp-side-sub">Host kernel'i paylaşır. Namespace ve cgroup ile izolasyon sağlar. Hypervisor katmanı yoktur.</div>
+        <div class="cmp-side-pills">
+          <span class="cmp-pill pill-green">Düşük overhead</span>
+          <span class="cmp-pill pill-blue">Native kernel</span>
+          <span class="cmp-pill pill-green">Hızlı boot</span>
+          <span class="cmp-pill pill-yellow">OverlayFS</span>
+        </div>
       </div>
-      <div class="ld-kpi" id="kpi-ring0" style="border-color:var(--red);color:var(--red-light);">
-        <div class="ld-kpi-val" id="val-ring0">—</div>
-        <div class="ld-kpi-lbl">Ring 0 (Kernel) %</div>
-        <div class="ld-kpi-sub" id="sub-ring0">CPU'nun kernel'de geçirdiği süre</div>
+      <div class="cmp-divider">
+        <span class="cmp-vs">VS</span>
       </div>
-      <div class="ld-kpi" id="kpi-pfault" style="border-color:var(--purple);color:var(--purple-light);">
-        <div class="ld-kpi-val" id="val-pfault">—</div>
-        <div class="ld-kpi-lbl">Page Fault/s</div>
-        <div class="ld-kpi-sub" id="sub-pfault">sayfa tablosu erişim sayısı</div>
-      </div>
-      <div class="ld-kpi" id="kpi-reads" style="border-color:var(--green);color:var(--green-light);">
-        <div class="ld-kpi-val" id="val-reads">—</div>
-        <div class="ld-kpi-lbl">Disk Okuma/s</div>
-        <div class="ld-kpi-sub" id="sub-reads">I/O işlem sayısı</div>
-      </div>
-    </div>
-
-    <!-- Context switch sparkline -->
-    <div class="ld-chart-wrap">
-      <div class="ld-chart-title">Context Switch / saniye — son 80 sn</div>
-      <canvas class="ld-canvas" id="ld-canvas-ctxt"></canvas>
-    </div>
-
-    <!-- CPU Ring bar -->
-    <div class="ld-cpu-wrap">
-      <div class="ld-chart-title">CPU Kullanımı — Ring 3 (User) vs Ring 0 (Kernel)</div>
-      <div class="ld-cpu-bar" id="ld-cpu-bar">
-        <div class="ld-cpu-seg" id="seg-r3"  style="background:var(--blue);color:#000;width:10%">Ring 3</div>
-        <div class="ld-cpu-seg" id="seg-r0"  style="background:var(--red-light);color:#000;width:4%">Ring 0</div>
-        <div class="ld-cpu-seg" id="seg-idle"style="background:var(--bg-root);color:var(--text-subtle);flex:1">idle</div>
-      </div>
-      <div style="display:flex;gap:20px;margin-top:8px;font-size:.75rem;color:var(--text-muted);">
-        <span>🔵 <strong id="lbl-r3">—</strong> Ring 3 (uygulama)</span>
-        <span>🔴 <strong id="lbl-r0">—</strong> Ring 0 (kernel/syscall)</span>
-        <span>⚫ <strong id="lbl-idle">—</strong> idle</span>
+      <div class="cmp-side vm">
+        <div class="cmp-side-icon">🖥️</div>
+        <div class="cmp-side-title">Sanal Makine (KVM/Hyper-V)</div>
+        <div class="cmp-side-sub">Tam donanım sanallaştırması. Hypervisor üzerinde ayrı kernel çalıştırır. Güçlü izolasyon sağlar.</div>
+        <div class="cmp-side-pills">
+          <span class="cmp-pill pill-blue">Tam izolasyon</span>
+          <span class="cmp-pill pill-purple">Ayrı kernel</span>
+          <span class="cmp-pill pill-red">VMEXIT maliyeti</span>
+          <span class="cmp-pill pill-yellow">EPT/NPT</span>
+        </div>
       </div>
     </div>
 
-    <!-- Docker yük testi -->
-    <div class="ld-docker">
-      <div class="ld-docker-title">🐳 Docker Yük Testi</div>
-      <div class="ld-docker-sub">
-        4 CPU-intensive container başlat — metriklerin nasıl değiştiğini canlı izle.
-        VM'de bu yük VMEXIT overhead'i de oluştururdu.
+    <!-- Bar charts — Performans -->
+    <div class="cmp-section">
+      <div class="cmp-section-title">⚡ Performans Metrikleri</div>
+
+      <div class="bar-row">
+        <div class="bar-label">Boot Süresi</div>
+        <div class="bar-wrap">
+          <div class="bar-track">
+            <div class="bar-fill" style="width:1.1%;background:var(--green-light);color:#000">0.5s</div>
+          </div>
+          <div class="bar-name">🐳 Docker</div>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar-track">
+            <div class="bar-fill" style="width:100%;background:var(--blue-light);color:#000;animation-delay:.1s">45s</div>
+          </div>
+          <div class="bar-name">🖥️ VM (KVM)</div>
+        </div>
       </div>
-      <div class="ld-docker-btns">
-        <button class="btn btn-green" id="btn-stress-start">▶ 4 Container Başlat</button>
-        <button class="btn btn-outline" id="btn-stress-stop">⏹ Durdur</button>
-        <div class="ld-ccount">Çalışan container: <span id="ld-ccount">0</span></div>
+
+      <div class="bar-row">
+        <div class="bar-label">Context Switch</div>
+        <div class="bar-wrap">
+          <div class="bar-track">
+            <div class="bar-fill" style="width:10%;background:var(--green-light);color:#000">~200 ns</div>
+          </div>
+          <div class="bar-name">🐳 Docker (namespace geçişi)</div>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar-track">
+            <div class="bar-fill" style="width:100%;background:var(--red-light);color:#000;animation-delay:.15s">~2000 ns</div>
+          </div>
+          <div class="bar-name">🖥️ VM (VMEXIT + register flush)</div>
+        </div>
       </div>
-      <div class="ld-no-server" id="ld-no-server">
-        ⚠️ Sunucu bulunamadı — WSL'de <code>node server.js</code> çalıştır, sonra sayfayı yenile.
+
+      <div class="bar-row">
+        <div class="bar-label">Disk I/O Overhead</div>
+        <div class="bar-wrap">
+          <div class="bar-track">
+            <div class="bar-fill" style="width:13%;background:var(--green-light);color:#000">+2%</div>
+          </div>
+          <div class="bar-name">🐳 Docker (OverlayFS)</div>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar-track">
+            <div class="bar-fill" style="width:100%;background:var(--yellow-light);color:#000;animation-delay:.2s">+15%</div>
+          </div>
+          <div class="bar-name">🖥️ VM (virtio disk katmanı)</div>
+        </div>
+      </div>
+
+      <div class="bar-row">
+        <div class="bar-label">Ağ Gecikmesi</div>
+        <div class="bar-wrap">
+          <div class="bar-track">
+            <div class="bar-fill" style="width:20%;background:var(--green-light);color:#000">+5%</div>
+          </div>
+          <div class="bar-name">🐳 Docker (bridge/overlay)</div>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar-track">
+            <div class="bar-fill" style="width:100%;background:var(--yellow-light);color:#000;animation-delay:.25s">+25%</div>
+          </div>
+          <div class="bar-name">🖥️ VM (virtio-net + NAT)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bar charts — Kaynak -->
+    <div class="cmp-section">
+      <div class="cmp-section-title">💾 Kaynak Kullanımı</div>
+
+      <div class="bar-row">
+        <div class="bar-label">RAM Overhead</div>
+        <div class="bar-wrap">
+          <div class="bar-track">
+            <div class="bar-fill" style="width:1%;background:var(--green-light);color:#000;min-width:36px">~5 MB</div>
+          </div>
+          <div class="bar-name">🐳 Docker (sadece proses)</div>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar-track">
+            <div class="bar-fill" style="width:100%;background:var(--blue-light);color:#000;animation-delay:.1s">512 MB+</div>
+          </div>
+          <div class="bar-name">🖥️ VM (min. guest OS + kernel)</div>
+        </div>
+      </div>
+
+      <div class="bar-row">
+        <div class="bar-label">Depolama Boyutu</div>
+        <div class="bar-wrap">
+          <div class="bar-track">
+            <div class="bar-fill" style="width:12%;background:var(--green-light);color:#000">100 MB</div>
+          </div>
+          <div class="bar-name">🐳 Docker image (alpine tabanlı)</div>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar-track">
+            <div class="bar-fill" style="width:100%;background:var(--blue-light);color:#000;animation-delay:.15s">8 GB+</div>
+          </div>
+          <div class="bar-name">🖥️ VM disk image (işletim sistemi)</div>
+        </div>
+      </div>
+
+      <div class="bar-row">
+        <div class="bar-label">CPU Hypervisor Payı</div>
+        <div class="bar-wrap">
+          <div class="bar-track">
+            <div class="bar-fill" style="width:2.5%;background:var(--green-light);color:#000;min-width:36px">0.2%</div>
+          </div>
+          <div class="bar-name">🐳 Docker (hypervisor yok)</div>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar-track">
+            <div class="bar-fill" style="width:100%;background:var(--red-light);color:#000;animation-delay:.2s">8%</div>
+          </div>
+          <div class="bar-name">🖥️ VM (KVM/Hyper-V overhead)</div>
+        </div>
+      </div>
+
+      <div class="bar-row">
+        <div class="bar-label">Sayfa Tablosu Katmanı</div>
+        <div class="bar-wrap">
+          <div class="bar-track">
+            <div class="bar-fill" style="width:50%;background:var(--green-light);color:#000">1 katman</div>
+          </div>
+          <div class="bar-name">🐳 Docker (host page table)</div>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar-track">
+            <div class="bar-fill" style="width:100%;background:var(--purple-light);color:#000;animation-delay:.25s">2 katman</div>
+          </div>
+          <div class="bar-name">🖥️ VM (guest PT + EPT/NPT)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detaylı tablo -->
+    <div class="cmp-section">
+      <div class="cmp-section-title">📋 Özellik Karşılaştırması</div>
+      <table class="cmp-table">
+        <thead>
+          <tr>
+            <th style="width:30%">Özellik</th>
+            <th>🐳 Docker</th>
+            <th>🖥️ Sanal Makine</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="td-feature">İzolasyon seviyesi</td>
+            <td class="td-docker">Namespace (pid, net, mnt, uts)</td>
+            <td class="td-vm">Tam donanım izolasyonu <span class="win-badge win-v">VM ✓</span></td>
+          </tr>
+          <tr>
+            <td class="td-feature">Kernel paylaşımı</td>
+            <td class="td-docker">Host kernel paylaşılır <span class="win-badge win-d">🐳 ✓</span></td>
+            <td class="td-vm">Ayrı guest kernel çalışır</td>
+          </tr>
+          <tr>
+            <td class="td-feature">Syscall yolu</td>
+            <td class="td-docker">Doğrudan host kernel<span class="win-badge win-d">🐳 ✓</span></td>
+            <td class="td-vm">Guest kernel → VMEXIT → Host</td>
+          </tr>
+          <tr>
+            <td class="td-feature">Bellek yönetimi</td>
+            <td class="td-docker">Tek sayfa tablosu katmanı <span class="win-badge win-d">🐳 ✓</span></td>
+            <td class="td-vm">EPT/NPT (çift katmanlı)</td>
+          </tr>
+          <tr>
+            <td class="td-feature">Güvenlik</td>
+            <td class="td-docker">seccomp + AppArmor</td>
+            <td class="td-vm">Tam donanım izolasyonu <span class="win-badge win-v">VM ✓</span></td>
+          </tr>
+          <tr>
+            <td class="td-feature">Taşınabilirlik</td>
+            <td class="td-docker">Image tabanlı, her yerde çalışır <span class="win-badge win-d">🐳 ✓</span></td>
+            <td class="td-vm">Disk image büyük, yavaş taşınır</td>
+          </tr>
+          <tr>
+            <td class="td-feature">Windows/macOS uyumu</td>
+            <td class="td-docker">WSL2 veya VM gerekir</td>
+            <td class="td-vm">Farklı OS çalıştırabilir <span class="win-badge win-v">VM ✓</span></td>
+          </tr>
+          <tr>
+            <td class="td-feature">Ölçeklenebilirlik</td>
+            <td class="td-docker">Saniyeler içinde 100+ container <span class="win-badge win-d">🐳 ✓</span></td>
+            <td class="td-vm">Her VM GB RAM gerektirir</td>
+          </tr>
+          <tr>
+            <td class="td-feature">Orchestration</td>
+            <td class="td-docker">Kubernetes, Docker Swarm <span class="win-badge win-d">🐳 ✓</span></td>
+            <td class="td-vm">VMware vSphere, Proxmox</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mimari katman karşılaştırması -->
+    <div class="cmp-section">
+      <div class="cmp-section-title">🏗️ Mimari Katmanlar</div>
+      <div class="arch-grid">
+
+        <div class="arch-card">
+          <div class="arch-title" style="color:var(--green-light)">🐳 Docker</div>
+          <div class="arch-layer" style="background:var(--green-b);color:var(--green-light)">📦 Container (App + Libs)</div>
+          <div class="arch-arrow">↓ namespace/cgroup</div>
+          <div class="arch-layer" style="background:rgba(99,179,237,.15);color:var(--blue-light)">🐧 Docker Engine (containerd)</div>
+          <div class="arch-arrow">↓ syscall direkt</div>
+          <div class="arch-layer" style="background:var(--purple-b);color:var(--purple-light)">🛡️ Host Kernel (Ring 0)</div>
+          <div class="arch-arrow">↓</div>
+          <div class="arch-layer" style="background:var(--border);color:var(--text-muted)">⚙️ Donanım</div>
+        </div>
+
+        <div class="arch-card">
+          <div class="arch-title" style="color:var(--blue-light)">🖥️ Sanal Makine</div>
+          <div class="arch-layer" style="background:var(--blue-b);color:var(--blue-light)">📦 Uygulama</div>
+          <div class="arch-arrow">↓ syscall</div>
+          <div class="arch-layer" style="background:rgba(159,122,234,.2);color:var(--purple-light)">🐧 Guest Kernel + Guest OS</div>
+          <div class="arch-arrow">↓ VMEXIT (pahalı!)</div>
+          <div class="arch-layer" style="background:var(--red-b);color:var(--red-light)">🔴 Hypervisor (KVM / Hyper-V)</div>
+          <div class="arch-arrow">↓</div>
+          <div class="arch-layer" style="background:var(--purple-b);color:var(--purple-light)">🛡️ Host Kernel (Ring 0)</div>
+          <div class="arch-arrow">↓</div>
+          <div class="arch-layer" style="background:var(--border);color:var(--text-muted)">⚙️ Donanım</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Ne zaman hangisi -->
+    <div class="cmp-section">
+      <div class="cmp-section-title">🎯 Ne Zaman Hangisini Kullanmalı?</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <div style="font-size:.82rem;font-weight:700;color:var(--green-light);margin-bottom:10px">🐳 Docker Tercih Et</div>
+          <div style="font-size:.78rem;color:var(--text-muted);line-height:1.9">
+            ✓ Mikro servis mimarisi<br>
+            ✓ CI/CD pipeline'ları<br>
+            ✓ Hızlı geliştirme ortamları<br>
+            ✓ Yüksek yoğunluklu dağıtım (100+ instance)<br>
+            ✓ Kubernetes orchestration<br>
+            ✓ Uygulama aynı OS kernel'i paylaşabiliyorsa
+          </div>
+        </div>
+        <div>
+          <div style="font-size:.82rem;font-weight:700;color:var(--blue-light);margin-bottom:10px">🖥️ VM Tercih Et</div>
+          <div style="font-size:.78rem;color:var(--text-muted);line-height:1.9">
+            ✓ Farklı işletim sistemi gerekiyorsa (Windows, BSD)<br>
+            ✓ Tam güvenlik izolasyonu kritikse<br>
+            ✓ Kernel-level exploit riski varsa<br>
+            ✓ Legacy uygulama uyumluluğu<br>
+            ✓ Dedicated donanım kaynağı gereken iş yükleri<br>
+            ✓ Compliance / yasal gereksinimler
+          </div>
+        </div>
       </div>
     </div>
 
@@ -143,228 +379,6 @@ export const liveDashboard = {
 </div>`
   },
 
-  init(root) {
-    this._timers  = []
-    this._history = { ctxt: [], ring0: [], pfault: [] }
-    this._cur     = {}
-    this._disp    = { ctxt: 0, ring0: 0, pfault: 0, reads: 0 }
-    this._live    = false
-    this._containers = 0
-    this._root    = root
-
-    this._initCanvas(root)
-    this._startPolling(root)
-    this._initDockerBtns(root)
-    this._startRaf(root)
-  },
-
-  // ── Canvas setup ──────────────────────────────────
-  _initCanvas(root) {
-    const canvas = root.querySelector('#ld-canvas-ctxt')
-    if (!canvas) return
-    const resize = () => {
-      canvas.width  = canvas.offsetWidth  * devicePixelRatio
-      canvas.height = canvas.offsetHeight * devicePixelRatio
-    }
-    resize()
-    this._resizeObserver = new ResizeObserver(resize)
-    this._resizeObserver.observe(canvas)
-  },
-
-  // ── Polling ───────────────────────────────────────
-  _startPolling(root) {
-    const poll = async () => {
-      try {
-        const r = await fetch('http://localhost:4001/metrics', { signal: AbortSignal.timeout(1800) })
-        const m = await r.json()
-        this._live = true
-        this._updateData(m, root)
-      } catch {
-        this._live = false
-        // snapshot'a düş
-        this._updateData(snapshot, root)
-      }
-
-      // docker status
-      if (this._live) {
-        try {
-          const r2 = await fetch('http://localhost:4001/stress/status', { signal: AbortSignal.timeout(1000) })
-          const s  = await r2.json()
-          this._containers = s.count || 0
-          const el = root.querySelector('#ld-ccount')
-          if (el) el.textContent = this._containers
-        } catch {}
-      }
-    }
-
-    poll()
-    const t = setInterval(poll, POLL_MS)
-    this._timers.push(t)
-  },
-
-  // ── Data update ───────────────────────────────────
-  _updateData(m, root) {
-    this._cur = m
-
-    // history
-    const push = (arr, val) => { arr.push(val); if (arr.length > HISTORY) arr.shift() }
-    push(this._history.ctxt,   m.context_switch?.ctxt_per_sec    || 0)
-    push(this._history.ring0,  m.cpu?.ring0_pct                  || 0)
-    push(this._history.pfault, m.paging?.pgfault_per_sec         || 0)
-
-    // targets for animation
-    this._disp._ctxtTarget   = m.context_switch?.ctxt_per_sec    || 0
-    this._disp._ring0Target  = m.cpu?.ring0_pct                  || 0
-    this._disp._pfaultTarget = m.paging?.pgfault_per_sec         || 0
-    this._disp._readsTarget  = m.disk?.reads_per_sec             || 0
-
-    // status bar
-    const dot = root.querySelector('#ld-dot')
-    const txt = root.querySelector('#ld-status-txt')
-    const sys = root.querySelector('#ld-sys-info')
-    const nos = root.querySelector('#ld-no-server')
-    if (dot) dot.className = 'ld-dot ' + (this._live ? 'live' : 'snap')
-    if (txt) txt.textContent = this._live ? '● Canlı veri — 2 saniyede bir güncelleniyor' : '📷 Snapshot verisi — node server.js başlat'
-    if (sys) sys.textContent = `${m.system?.hostname || '—'} · ${m.system?.kernel?.replace('Linux version ','') || '—'} · ${m.system?.cores || '—'} çekirdek`
-    if (nos) nos.style.display = this._live ? 'none' : 'block'
-
-    // CPU bar
-    const r3   = m.cpu?.ring3_pct || 0
-    const r0   = m.cpu?.ring0_pct || 0
-    const idle = Math.max(0, 100 - r3 - r0)
-    const sr3  = root.querySelector('#seg-r3')
-    const sr0  = root.querySelector('#seg-r0')
-    const si   = root.querySelector('#seg-idle')
-    if (sr3)  sr3.style.width  = r3   + '%'
-    if (sr0)  sr0.style.width  = r0   + '%'
-    if (si)   si.style.width   = idle + '%'
-    const lr3  = root.querySelector('#lbl-r3')
-    const lr0  = root.querySelector('#lbl-r0')
-    const li   = root.querySelector('#lbl-idle')
-    if (lr3)  lr3.textContent  = r3   + '%'
-    if (lr0)  lr0.textContent  = r0   + '%'
-    if (li)   li.textContent   = idle.toFixed(1) + '%'
-
-    // spike highlight
-    const ctxtVal = m.context_switch?.ctxt_per_sec || 0
-    const kpi = root.querySelector('#kpi-ctxt')
-    if (kpi) {
-      const isSpike = ctxtVal > 20000
-      kpi.classList.toggle('spike', isSpike)
-    }
-
-    this._drawCanvas(root)
-  },
-
-  // ── Canvas draw ───────────────────────────────────
-  _drawCanvas(root) {
-    const canvas = root.querySelector('#ld-canvas-ctxt')
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    const W = canvas.width, H = canvas.height
-    ctx.clearRect(0, 0, W, H)
-
-    const data = this._history.ctxt
-    if (data.length < 2) return
-
-    const max = Math.max(...data) * 1.15 || 1
-    const pts = data.map((v, i) => ({
-      x: (i / (HISTORY - 1)) * W,
-      y: H - (v / max) * H * 0.85 - H * 0.08
-    }))
-
-    // grid lines
-    ctx.strokeStyle = 'rgba(255,255,255,0.04)'
-    ctx.lineWidth = 1
-    for (let i = 1; i < 4; i++) {
-      ctx.beginPath()
-      ctx.moveTo(0, H * i / 4)
-      ctx.lineTo(W, H * i / 4)
-      ctx.stroke()
-    }
-
-    // gradient fill
-    const grad = ctx.createLinearGradient(0, 0, 0, H)
-    grad.addColorStop(0, 'rgba(99,179,237,0.35)')
-    grad.addColorStop(1, 'rgba(99,179,237,0)')
-    ctx.beginPath()
-    ctx.moveTo(pts[0].x, pts[0].y)
-    for (let i = 1; i < pts.length; i++) {
-      const mx = (pts[i-1].x + pts[i].x) / 2
-      ctx.bezierCurveTo(mx, pts[i-1].y, mx, pts[i].y, pts[i].x, pts[i].y)
-    }
-    ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath()
-    ctx.fillStyle = grad; ctx.fill()
-
-    // line
-    ctx.beginPath()
-    ctx.moveTo(pts[0].x, pts[0].y)
-    for (let i = 1; i < pts.length; i++) {
-      const mx = (pts[i-1].x + pts[i].x) / 2
-      ctx.bezierCurveTo(mx, pts[i-1].y, mx, pts[i].y, pts[i].x, pts[i].y)
-    }
-    ctx.strokeStyle = '#63b3ed'
-    ctx.lineWidth = 2 * devicePixelRatio
-    ctx.stroke()
-
-    // current dot
-    const last = pts[pts.length - 1]
-    ctx.beginPath()
-    ctx.arc(last.x, last.y, 5 * devicePixelRatio, 0, Math.PI * 2)
-    ctx.fillStyle = '#63b3ed'; ctx.fill()
-
-    // max label
-    ctx.fillStyle = 'rgba(99,179,237,0.6)'
-    ctx.font = `${11 * devicePixelRatio}px monospace`
-    ctx.fillText(Math.round(max).toLocaleString() + '/s', 6 * devicePixelRatio, 14 * devicePixelRatio)
-  },
-
-  // ── Smooth number animation (rAF) ─────────────────
-  _startRaf(root) {
-    const lerp = (a, b, t) => a + (b - a) * t
-    const fmt  = n => Math.round(n).toLocaleString()
-
-    const tick = () => {
-      if (!this._disp) return
-      const d = this._disp
-
-      d.ctxt   = lerp(d.ctxt   || 0, d._ctxtTarget   || 0, 0.12)
-      d.ring0  = lerp(d.ring0  || 0, d._ring0Target  || 0, 0.12)
-      d.pfault = lerp(d.pfault || 0, d._pfaultTarget || 0, 0.12)
-      d.reads  = lerp(d.reads  || 0, d._readsTarget  || 0, 0.12)
-
-      const v = (id, val) => { const el = root.querySelector(id); if (el) el.textContent = val }
-      v('#val-ctxt',   fmt(d.ctxt))
-      v('#val-ring0',  d.ring0.toFixed(1) + '%')
-      v('#val-pfault', fmt(d.pfault))
-      v('#val-reads',  fmt(d.reads))
-
-      this._raf = requestAnimationFrame(tick)
-    }
-    this._raf = requestAnimationFrame(tick)
-  },
-
-  // ── Docker buttons ────────────────────────────────
-  _initDockerBtns(root) {
-    root.querySelector('#btn-stress-start')?.addEventListener('click', async () => {
-      if (!this._live) return
-      try {
-        await fetch('http://localhost:4001/stress/start', { method: 'POST' })
-      } catch {}
-    })
-    root.querySelector('#btn-stress-stop')?.addEventListener('click', async () => {
-      if (!this._live) return
-      try {
-        await fetch('http://localhost:4001/stress/stop', { method: 'POST' })
-      } catch {}
-    })
-  },
-
-  destroy() {
-    this._timers.forEach(t => clearInterval(t))
-    this._timers = []
-    if (this._raf) cancelAnimationFrame(this._raf)
-    if (this._resizeObserver) this._resizeObserver.disconnect()
-    this._disp = null
-  },
+  init() {},
+  destroy() {},
 }

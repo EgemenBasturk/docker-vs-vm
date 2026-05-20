@@ -18,7 +18,7 @@ const MODULES = {
 
 const NAV_ITEMS = [
   { id: 'home',           icon: '🏠', label: 'Ana Sayfa' },
-  { id: 'live-dashboard', icon: '📊', label: 'Canlı Veriler' },
+  { id: 'live-dashboard', icon: '📊', label: 'Karşılaştırma' },
   { id: 'docker-vm',      icon: '🐳', label: 'Docker vs VM' },
   { id: 'paging',         icon: '📄', label: 'Paging' },
   { id: 'context-switch', icon: '🔄', label: 'Context Switch' },

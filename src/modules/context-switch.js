@@ -86,8 +86,8 @@ export const contextSwitch = {
   <div class="module-tabs">
     <button class="tab-btn active" data-tab="cs-nedir">① Context Switch Nedir?</button>
     <button class="tab-btn" data-tab="cs-adimlar">② Adım Adım Simülasyon</button>
-    <button class="tab-btn" data-tab="cs-karsilastir">③ VM vs Container</button>
-    <button class="tab-btn" data-tab="cs-scheduler">④ Round Robin Scheduler</button>
+    <button class="tab-btn" data-tab="cs-scheduler">③ Round Robin Scheduler</button>
+    <button class="tab-btn" data-tab="cs-karsilastir">④ VM vs Container</button>
   </div>
 
   <!-- TAB 1 -->
@@ -195,70 +195,7 @@ export const contextSwitch = {
     </div>
   </div>
 
-  <!-- TAB 3: VM vs Container -->
-  <div id="cs-karsilastir" class="tab-panel">
-    <div class="panel-title">VM vs Container — Context Switch Maliyeti</div>
-    <div class="panel-sub">Aynı geçiş VM'de kaç adım, Container'da kaç adım?</div>
-    <div class="btn-row"><button class="btn btn-primary" id="run-compare">▶ Karşılaştırmayı Başlat</button></div>
-    <div class="grid-2">
-      <div class="panel-box">
-        <div class="panel-box-header ph-purple">🔮 Sanal Makine <span id="vm-step-lbl" style="font-size:0.72rem">—</span></div>
-        <div class="panel-box-body" id="vm-timeline">
-          ${[
-            ['Timer Interrupt (Donanım)', 'CPU timer donanımı interrupt üretir, Hypervisor\'a bildirir', '~50 ns', 'md'],
-            ['VM Exit (Hypervisor\'a geçiş)', 'Guest OS → Hypervisor geçişi (VMEXIT). VM state flush edilir', '~500-1000 ns', 'hi'],
-            ['Guest OS Context Kaydet', 'Hypervisor mevcut VM\'in tüm register + CPU state\'ini kaydeder', '~200-500 ns', 'hi'],
-            ['Hypervisor Scheduler', 'Hangi VM / process\'in çalışacağına karar verir', '~100 ns', 'md'],
-            ['Guest OS Context Yükle', 'Yeni process\'in tüm register + state\'i CPU\'ya yüklenir', '~200-500 ns', 'hi'],
-            ['VM Entry (Guest\'e dönüş)', 'Hypervisor → Guest OS geçişi (VMENTRY). TLB flush gerekebilir', '~500-1000 ns', 'hi'],
-            ['Process Çalışmaya Devam', 'Yeni process kaldığı yerden devam eder', '✓ Tamamlandı', 'lo'],
-          ].map((s, i) => `
-            <div class="timeline-step" id="vm-s${i+1}">
-              <div class="step-num" style="background:var(--purple-b);color:var(--purple-light)">${i+1}</div>
-              <div class="step-content">
-                <div class="step-title">${s[0]}</div>
-                <div class="step-desc">${s[1]}</div>
-                <span class="step-cost cost-${s[3]}">${s[2]}</span>
-              </div>
-            </div>`).join('')}
-          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-subtle)">
-            <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:6px">Toplam Tahmini Süre</div>
-            <div style="display:flex;justify-content:space-between;font-size:0.74rem;color:var(--text-muted);margin-bottom:4px"><span>VM Context Switch</span><span>~2-4 μs</span></div>
-            <div class="progress-bg"><div class="progress-fill" id="vm-comp-bar" style="width:0%;background:linear-gradient(90deg,var(--purple),var(--purple-light))"></div></div>
-          </div>
-        </div>
-      </div>
-      <div class="panel-box">
-        <div class="panel-box-header ph-blue">🐳 Docker Container <span id="docker-step-lbl" style="font-size:0.72rem">—</span></div>
-        <div class="panel-box-body" id="docker-timeline">
-          ${[
-            ['Timer Interrupt (Donanım)', 'CPU timer interrupt, direkt Host Kernel\'a iletilir', '~50 ns', 'md'],
-            ['Kernel Scheduler Devreye Girer', 'Linux CFS scheduler doğrudan kararını verir — Hypervisor yok', '~50 ns', 'lo'],
-            ['Register\'ları Kaydet', 'Mevcut container process\'inin register\'ları kernel stack\'e kaydedilir', '~50-100 ns', 'lo'],
-            ['Namespace Geçişi', 'PID/net namespace değiştirilir — Docker\'a özgü ek adım', '~10-50 ns', 'md'],
-            ['Register\'ları Yükle & Devam', 'Yeni container process\'i yüklenir ve çalışmaya başlar', '✓ Tamamlandı', 'lo'],
-          ].map((s, i) => `
-            <div class="timeline-step" id="dk-s${i+1}">
-              <div class="step-num" style="background:var(--blue-b);color:var(--blue-light)">${i+1}</div>
-              <div class="step-content">
-                <div class="step-title">${s[0]}</div>
-                <div class="step-desc">${s[1]}</div>
-                <span class="step-cost cost-${s[3]}">${s[2]}</span>
-              </div>
-            </div>`).join('')}
-          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-subtle)">
-            <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:6px">Toplam Tahmini Süre</div>
-            <div style="display:flex;justify-content:space-between;font-size:0.74px;color:var(--text-muted);margin-bottom:4px"><span>Container Context Switch</span><span>~0.2-0.5 μs</span></div>
-            <div class="progress-bg"><div class="progress-fill" id="dk-comp-bar" style="width:0%;background:linear-gradient(90deg,var(--blue),var(--blue-light))"></div></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div id="cs-realdata" data-realdata="cs" style="padding:0 0 4px"></div>
-
-  <!-- TAB 4: Round Robin -->
+  <!-- TAB 3: Round Robin -->
   <div id="cs-scheduler" class="tab-panel">
     <div class="panel-title">Round Robin Scheduler</div>
     <div class="panel-sub">CPU sırayla her processe söz hakkı verir — time quantum dolunca geçiş yapar</div>
@@ -292,6 +229,74 @@ export const contextSwitch = {
 
       <div class="stats-row" id="sched-stats" style="margin-top:14px"></div>
     </div>
+  </div>
+
+  <!-- TAB 4: VM vs Container -->
+  <div id="cs-karsilastir" class="tab-panel">
+    <div class="panel-title">VM vs Container — Context Switch Maliyeti</div>
+    <div class="panel-sub">Aynı geçiş VM'de kaç adım, Container'da kaç adım?</div>
+    <div class="btn-row"><button class="btn btn-primary" id="run-compare">▶ Karşılaştırmayı Başlat</button></div>
+    <div class="grid-2">
+      <div class="panel-box">
+        <div class="panel-box-header ph-purple">🔮 Sanal Makine <span id="vm-step-lbl" style="font-size:0.72rem">—</span></div>
+        <div class="panel-box-body" id="vm-timeline">
+          ${[
+            ['Timer Interrupt (Donanım)', 'CPU timer donanımı interrupt üretir, Hypervisor\'a bildirir', '~50 ns', 'md'],
+            ['VM Exit (Hypervisor\'a geçiş)', 'Guest OS → Hypervisor geçişi (VMEXIT). VM state flush edilir', '~500-1000 ns', 'hi'],
+            ['Guest OS Context Kaydet', 'Hypervisor mevcut VM\'in tüm register + CPU state\'ini kaydeder', '~200-500 ns', 'hi'],
+            ['Hypervisor Scheduler', 'Hangi VM / process\'in çalışacağına karar verir', '~100 ns', 'md'],
+            ['Guest OS Context Yükle', 'Yeni process\'in tüm register + state\'i CPU\'ya yüklenir', '~200-500 ns', 'hi'],
+            ['VM Entry (Guest\'e dönüş)', 'Hypervisor → Guest OS geçişi (VMENTRY). TLB flush gerekebilir', '~500-1000 ns', 'hi'],
+            ['Process Çalışmaya Devam', 'Yeni process kaldığı yerden devam eder', '✓ Tamamlandı', 'lo'],
+          ].map((s, i) => `
+            <div class="timeline-step" id="vm-s${i+1}">
+              <div class="step-num" style="background:var(--purple-b);color:var(--purple-light)">${i+1}</div>
+              <div class="step-content">
+                <div class="step-title">${s[0]}</div>
+                <div class="step-desc">${s[1]}</div>
+                <span class="step-cost cost-${s[3]}">${s[2]}</span>
+              </div>
+            </div>`).join('')}
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-subtle)">
+            <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:6px">Toplam Tahmini Süre</div>
+            <div style="display:flex;justify-content:space-between;font-size:0.74rem;color:var(--text-muted);margin-bottom:4px">
+              <span>VM Context Switch</span>
+              <span style="color:var(--red-light);font-weight:700">~2–4 μs &nbsp;🔴 10× yavaş</span>
+            </div>
+            <div class="progress-bg"><div class="progress-fill" id="vm-comp-bar" style="width:0%;background:linear-gradient(90deg,var(--purple),var(--red-light))"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel-box">
+        <div class="panel-box-header ph-blue">🐳 Docker Container <span id="docker-step-lbl" style="font-size:0.72rem">—</span></div>
+        <div class="panel-box-body" id="docker-timeline">
+          ${[
+            ['Timer Interrupt (Donanım)', 'CPU timer interrupt, direkt Host Kernel\'a iletilir', '~50 ns', 'md'],
+            ['Kernel Scheduler Devreye Girer', 'Linux CFS scheduler doğrudan kararını verir — Hypervisor yok', '~50 ns', 'lo'],
+            ['Register\'ları Kaydet', 'Mevcut container process\'inin register\'ları kernel stack\'e kaydedilir', '~50-100 ns', 'lo'],
+            ['Namespace Geçişi', 'PID/net namespace değiştirilir — Docker\'a özgü ek adım', '~10-50 ns', 'md'],
+            ['Register\'ları Yükle & Devam', 'Yeni container process\'i yüklenir ve çalışmaya başlar', '✓ Tamamlandı', 'lo'],
+          ].map((s, i) => `
+            <div class="timeline-step" id="dk-s${i+1}">
+              <div class="step-num" style="background:var(--blue-b);color:var(--blue-light)">${i+1}</div>
+              <div class="step-content">
+                <div class="step-title">${s[0]}</div>
+                <div class="step-desc">${s[1]}</div>
+                <span class="step-cost cost-${s[3]}">${s[2]}</span>
+              </div>
+            </div>`).join('')}
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-subtle)">
+            <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:6px">Toplam Tahmini Süre</div>
+            <div style="display:flex;justify-content:space-between;font-size:0.74rem;color:var(--text-muted);margin-bottom:4px">
+              <span>Container Context Switch</span>
+              <span style="color:var(--green-light);font-weight:700">~0.2–0.5 μs &nbsp;🟢 10× hızlı</span>
+            </div>
+            <div class="progress-bg"><div class="progress-fill" id="dk-comp-bar" style="width:0%;background:linear-gradient(90deg,var(--blue),var(--green-light))"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="cs-realdata" data-realdata="cs" style="padding:16px 0 4px"></div>
   </div>
 </div>
 `
@@ -488,13 +493,13 @@ export const contextSwitch = {
         }
         const t1 = setTimeout(() => {
           const bar = root.querySelector('#vm-comp-bar')
-          if (bar) bar.style.width = '88%'
+          if (bar) bar.style.width = '100%'
           const lbl = root.querySelector('#vm-step-lbl')
           if (lbl) lbl.textContent = '✓ ~2-4 μs'
         }, 7 * 450 + 200)
         const t2 = setTimeout(() => {
           const bar = root.querySelector('#dk-comp-bar')
-          if (bar) bar.style.width = '22%'
+          if (bar) bar.style.width = '10%'
           const lbl = root.querySelector('#docker-step-lbl')
           if (lbl) lbl.textContent = '✓ ~0.2-0.5 μs'
         }, 5 * 350 + 200)
@@ -578,17 +583,28 @@ export const contextSwitch = {
           statsEl.appendChild(chip)
         }
 
+        const doneProcNames = new Set()
         let gi = 0
         const interval = setInterval(() => {
-          if (gi >= gantt.length) { clearInterval(interval); return }
+          if (gi >= gantt.length) { clearInterval(interval); runQ.innerHTML = ''; return }
           const name = gantt[gi]
           runQ.innerHTML = ''
           const el = document.createElement('div')
           el.className = 'q-proc q-run'
-          el.textContent = name + ' (' + (gi+1) + ')'
+          el.textContent = name
           el.style.cssText = `background:${PROC_BG_RR[name]};color:${PROC_COLORS_RR[name]};border-color:${PROC_COLORS_RR[name]}44`
           runQ.appendChild(el)
           if (ganttRow.children[gi]) ganttRow.children[gi].classList.add('lit')
+
+          if (!doneProcNames.has(name) && gi + 1 === compTimes[name]) {
+            doneProcNames.add(name)
+            const doneEl = document.createElement('div')
+            doneEl.className = 'q-proc q-done'
+            doneEl.textContent = name + ' ✓'
+            doneEl.style.cssText = `background:${PROC_BG_RR[name]};color:${PROC_COLORS_RR[name]};border-color:${PROC_COLORS_RR[name]}44`
+            doneQ.appendChild(doneEl)
+          }
+
           gi++
         }, 280)
         this._timers.push(interval)
